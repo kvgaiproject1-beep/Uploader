@@ -3,11 +3,17 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
+type Mode = 'login' | 'signup'
 type State = 'idle' | 'loading' | 'success' | 'error'
 
 export default function LoginPage() {
+  const router = useRouter()
+  const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  
   const [state, setState] = useState<State>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -27,19 +33,41 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || state === 'loading') return
+    if (!email || !password || state === 'loading') return
 
     setState('loading')
     setErrorMsg('')
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    })
-
-    setState(error ? 'error' : 'success')
-    if (error) setErrorMsg(error.message)
+    
+    if (mode === 'signup') {
+      const { error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      })
+      
+      if (error) {
+        setState('error')
+        setErrorMsg(error.message)
+      } else {
+        setState('success') // Tells them to check email
+      }
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password,
+      })
+      
+      if (error) {
+        setState('error')
+        setErrorMsg(error.message)
+      } else {
+        // Successful login
+        router.push('/')
+        router.refresh()
+      }
+    }
   }
 
   return (
@@ -99,7 +127,7 @@ export default function LoginPage() {
               Check your inbox
             </h1>
             <p style={{ color: 'var(--t2)', lineHeight: 1.7, marginBottom: '0.5rem' }}>
-              We sent a magic link to
+              We sent a confirmation link to
             </p>
             <p
               style={{
@@ -112,19 +140,19 @@ export default function LoginPage() {
               {email}
             </p>
             <p style={{ fontSize: '0.875rem', color: 'var(--t3)', marginBottom: '1.5rem' }}>
-              Click the link in the email to sign&nbsp;in.&nbsp;It expires in&nbsp;1&nbsp;hour.
+              Click the link in the email to activate your account and sign in.
             </p>
             <button
-              onClick={() => { setState('idle'); setEmail('') }}
+              onClick={() => { setState('idle'); setPassword('') }}
               className="btn-ghost"
               style={{ width: '100%', justifyContent: 'center' }}
             >
-              Use a different email
+              Back to login
             </button>
           </div>
         ) : (
           <>
-            <div style={{ marginBottom: '1.75rem' }}>
+            <div style={{ marginBottom: '1.75rem', textAlign: 'center' }}>
               <h1
                 className="font-display"
                 style={{
@@ -134,10 +162,10 @@ export default function LoginPage() {
                   marginBottom: '0.5rem',
                 }}
               >
-                Welcome back
+                {mode === 'login' ? 'Welcome back' : 'Create an account'}
               </h1>
               <p style={{ color: 'var(--t2)', fontSize: '0.9375rem', lineHeight: 1.6 }}>
-                Sign in to your account to continue.
+                {mode === 'login' ? 'Sign in to your account to continue.' : 'Sign up to start trying on clothes.'}
               </p>
             </div>
 
@@ -169,13 +197,13 @@ export default function LoginPage() {
 
               <div style={{ display: 'flex', alignItems: 'center', margin: '0.5rem 0' }}>
                 <div style={{ flex: 1, height: 1, backgroundColor: 'var(--b0)' }} />
-                <span style={{ padding: '0 1rem', fontSize: '0.75rem', color: 'var(--t3)', textTransform: 'uppercase' }}>or magic link</span>
+                <span style={{ padding: '0 1rem', fontSize: '0.75rem', color: 'var(--t3)', textTransform: 'uppercase' }}>or email and password</span>
                 <div style={{ flex: 1, height: 1, backgroundColor: 'var(--b0)' }} />
               </div>
 
-              <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div>
-                  <label htmlFor="email-input" className="form-label" style={{ display: 'none' }}>
+                  <label htmlFor="email-input" className="form-label">
                     Email address
                   </label>
                   <input
@@ -191,65 +219,105 @@ export default function LoginPage() {
                     aria-invalid={state === 'error' ? 'true' : undefined}
                   />
                 </div>
-
-              {state === 'error' && (
-                <div
-                  id="login-error"
-                  role="alert"
-                  style={{
-                    background: 'var(--c-error-dim)',
-                    border: '1px solid rgba(239,68,68,0.25)',
-                    borderRadius: 'var(--r-md)',
-                    padding: '0.75rem 1rem',
-                    fontSize: '0.875rem',
-                    color: '#fca5a5',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {errorMsg || 'Something went wrong. Please try again.'}
+                
+                <div>
+                  <label htmlFor="password-input" className="form-label">
+                    Password
+                  </label>
+                  <input
+                    id="password-input"
+                    type="password"
+                    className="input-field"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    aria-describedby={state === 'error' ? 'login-error' : undefined}
+                    aria-invalid={state === 'error' ? 'true' : undefined}
+                  />
+                  {mode === 'signup' && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--t3)', marginTop: '0.375rem' }}>
+                      Must be at least 6 characters.
+                    </div>
+                  )}
                 </div>
-              )}
 
-              <button
-                id="send-magic-link-btn"
-                type="submit"
-                className="btn-primary"
-                disabled={state === 'loading' || !email}
-                style={{ width: '100%', padding: '0.875rem' }}
-                aria-busy={state === 'loading' ? 'true' : undefined}
-              >
-                {state === 'loading' ? (
+                {state === 'error' && (
+                  <div
+                    id="login-error"
+                    role="alert"
+                    style={{
+                      background: 'var(--c-error-dim)',
+                      border: '1px solid rgba(239,68,68,0.25)',
+                      borderRadius: 'var(--r-md)',
+                      padding: '0.75rem 1rem',
+                      fontSize: '0.875rem',
+                      color: '#fca5a5',
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {errorMsg || 'Something went wrong. Please try again.'}
+                  </div>
+                )}
+
+                <button
+                  id="submit-btn"
+                  type="submit"
+                  className="btn-primary"
+                  disabled={state === 'loading' || !email || !password}
+                  style={{ width: '100%', padding: '0.875rem', marginTop: '0.25rem' }}
+                  aria-busy={state === 'loading' ? 'true' : undefined}
+                >
+                  {state === 'loading' ? (
+                    <>
+                      <span
+                        className="a-spin"
+                        aria-hidden="true"
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: '50%',
+                          border: '2px solid rgba(255,255,255,0.3)',
+                          borderTopColor: '#fff',
+                          display: 'inline-block',
+                        }}
+                      />
+                      {mode === 'login' ? 'Signing in…' : 'Creating account…'}
+                    </>
+                  ) : (
+                    <>{mode === 'login' ? 'Sign In' : 'Sign Up'} <span aria-hidden="true">→</span></>
+                  )}
+                </button>
+              </form>
+              
+              <div style={{ marginTop: '0.75rem', textAlign: 'center', fontSize: '0.875rem', color: 'var(--t2)' }}>
+                {mode === 'login' ? (
                   <>
-                    <span
-                      className="a-spin"
-                      aria-hidden="true"
-                      style={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: '50%',
-                        border: '2px solid rgba(255,255,255,0.3)',
-                        borderTopColor: '#fff',
-                        display: 'inline-block',
-                      }}
-                    />
-                    Sending…
+                    Don&apos;t have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => { setMode('signup'); setErrorMsg(''); setState('idle') }}
+                      style={{ background: 'none', border: 'none', color: 'var(--brand-400)', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                    >
+                      Sign up
+                    </button>
                   </>
                 ) : (
-                  <>Send Magic Link <span aria-hidden="true">✨</span></>
+                  <>
+                    Already have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => { setMode('login'); setErrorMsg(''); setState('idle') }}
+                      style={{ background: 'none', border: 'none', color: 'var(--brand-400)', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                    >
+                      Sign in
+                    </button>
+                  </>
                 )}
-              </button>
-            </form>
-
-            <p
-              style={{
-                marginTop: '1.5rem',
-                textAlign: 'center',
-                fontSize: '0.8125rem',
-                color: 'var(--t3)',
-              }}
-            >
-              By signing in you agree to our terms of service.
-            </p>
+              </div>
+            </div>
           </>
         )}
       </div>

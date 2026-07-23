@@ -38,9 +38,12 @@ export async function GET(request: NextRequest) {
 
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`)
+    } else {
+      // If there's an error exchanging the code, return it
+      return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`)
     }
   }
 
-  // Something went wrong — send back to login with a hint
-  return NextResponse.redirect(`${origin}/login?error=Unable+to+verify+magic+link`)
+  // If no code was found at all
+  return NextResponse.redirect(`${origin}/login?error=No+authentication+code+found+in+URL`)
 }
