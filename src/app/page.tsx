@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
 
 const steps = [
   {
@@ -21,7 +22,10 @@ const steps = [
   },
 ]
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
   return (
     <main style={{ minHeight: '100vh', overflowX: 'hidden', position: 'relative' }}>
       {/* Animated background orbs */}
@@ -62,21 +66,34 @@ export default function LandingPage() {
         </Link>
 
         <nav aria-label="Primary" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Link
-            href="/login"
-            className="btn-ghost"
-            style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
-          >
-            Sign In
-          </Link>
-          <Link
-            href="/login"
-            className="btn-primary"
-            style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
-          >
-            Get Started
-            <span aria-hidden="true">→</span>
-          </Link>
+          {user ? (
+            <Link
+              href="/try-on"
+              className="btn-primary"
+              style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
+            >
+              Go to Try-On
+              <span aria-hidden="true">→</span>
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="btn-ghost"
+                style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/login"
+                className="btn-primary"
+                style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
+              >
+                Get Started
+                <span aria-hidden="true">→</span>
+              </Link>
+            </>
+          )}
         </nav>
       </header>
 
@@ -89,8 +106,9 @@ export default function LandingPage() {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
+          justifyContent: 'center',
           textAlign: 'center',
-          padding: 'clamp(3.5rem, 10vw, 8rem) clamp(1rem, 4vw, 2rem) clamp(2rem, 6vw, 5rem)',
+          padding: 'clamp(1.5rem, 4vw, 3rem) clamp(1rem, 4vw, 2rem) clamp(2rem, 6vw, 5rem)',
           maxWidth: 900,
           margin: '0 auto',
         }}
@@ -136,6 +154,7 @@ export default function LandingPage() {
             lineHeight: 1.06,
             letterSpacing: '-0.035em',
             marginBottom: '1.5rem',
+            textAlign: 'center',
           }}
         >
           Try on any outfit.
@@ -156,6 +175,7 @@ export default function LandingPage() {
             maxWidth: 520,
             lineHeight: 1.75,
             marginBottom: '2.5rem',
+            textAlign: 'center',
           }}
         >
           Upload your photo, pick a garment, and see a photorealistic AI&#8209;generated
@@ -172,13 +192,23 @@ export default function LandingPage() {
             marginBottom: '3rem',
           }}
         >
-          <Link
-            href="/login"
-            className="btn-primary"
-            style={{ padding: '0.9rem 2.25rem', fontSize: '1.0625rem' }}
-          >
-            Start Free <span aria-hidden="true">→</span>
-          </Link>
+          {user ? (
+            <Link
+              href="/try-on"
+              className="btn-primary"
+              style={{ padding: '0.9rem 2.25rem', fontSize: '1.0625rem' }}
+            >
+              Go to Try-On <span aria-hidden="true">→</span>
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="btn-primary"
+              style={{ padding: '0.9rem 2.25rem', fontSize: '1.0625rem' }}
+            >
+              Start Free <span aria-hidden="true">→</span>
+            </Link>
+          )}
           <a
             href="#how-it-works"
             className="btn-ghost"
@@ -296,13 +326,23 @@ export default function LandingPage() {
           <p style={{ color: 'var(--t2)', marginBottom: '2rem', fontSize: '1.05rem', maxWidth: 420, margin: '0 auto 2rem' }}>
             Sign up in seconds — no credit card, no downloads, just AI&nbsp;magic.
           </p>
-          <Link
-            href="/login"
-            className="btn-primary"
-            style={{ padding: '1rem 2.75rem', fontSize: '1.0625rem' }}
-          >
-            Get Started Free <span aria-hidden="true">→</span>
-          </Link>
+          {user ? (
+            <Link
+              href="/try-on"
+              className="btn-primary"
+              style={{ padding: '1rem 2.75rem', fontSize: '1.0625rem' }}
+            >
+              Go to Try-On <span aria-hidden="true">→</span>
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="btn-primary"
+              style={{ padding: '1rem 2.75rem', fontSize: '1.0625rem' }}
+            >
+              Get Started Free <span aria-hidden="true">→</span>
+            </Link>
+          )}
         </div>
       </section>
 

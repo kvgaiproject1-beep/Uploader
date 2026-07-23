@@ -35,12 +35,12 @@ const LOCAL_MODELS = [
 ]
 
 const STATUS_UI: Record<Status, { label: string; color: string; icon: string; cssClass: string }> = {
-  idle:       { label: 'Ready',      color: 'var(--t3)',    icon: '○', cssClass: '' },
-  uploading:  { label: 'Uploading…', color: 'var(--c-info)',icon: '⬆', cssClass: 'queued' },
-  queued:     { label: 'Queued',     color: 'var(--c-info)',icon: '○', cssClass: 'queued' },
-  processing: { label: 'Generating', color: 'var(--c-warn)',icon: '◎', cssClass: 'processing' },
-  done:       { label: 'Done',       color: 'var(--c-success)', icon: '✓', cssClass: 'done' },
-  error:      { label: 'Error',      color: 'var(--c-error)',   icon: '✕', cssClass: 'error' },
+  idle: { label: 'Ready', color: 'var(--t3)', icon: '○', cssClass: '' },
+  uploading: { label: 'Uploading…', color: 'var(--c-info)', icon: '⬆', cssClass: 'queued' },
+  queued: { label: 'Queued', color: 'var(--c-info)', icon: '○', cssClass: 'queued' },
+  processing: { label: 'Generating', color: 'var(--c-warn)', icon: '◎', cssClass: 'processing' },
+  done: { label: 'Done', color: 'var(--c-success)', icon: '✓', cssClass: 'done' },
+  error: { label: 'Error', color: 'var(--c-error)', icon: '✕', cssClass: 'error' },
 }
 
 export default function TryOnPage() {
@@ -52,13 +52,13 @@ export default function TryOnPage() {
   const [humanFile, setHumanFile] = useState<File | null>(null)
   const [humanPreview, setHumanPreview] = useState<string | null>(null)
   const [selectedHumanUrl, setSelectedHumanUrl] = useState<string | null>(null)
-  
+
   // Garment
   const [garmentTab, setGarmentTab] = useState<'catalog' | 'upload'>('catalog')
   const [garmentFile, setGarmentFile] = useState<File | null>(null)
   const [garmentPreview, setGarmentPreview] = useState<string | null>(null)
   const [selectedGarmentUrl, setSelectedGarmentUrl] = useState<string | null>(null)
-  
+
   const [description, setDescription] = useState('')
 
   // ── Generation state ────────────────────────────────────
