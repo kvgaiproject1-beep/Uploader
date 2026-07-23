@@ -632,7 +632,7 @@ export default function TryOnPage() {
                   {isGenerating ? 'AI is working its magic…' : 'Your result will appear here'}
                 </span>
                 <span style={{ fontSize: '0.8125rem' }}>
-                  {is insertions ? 'Results in ~30–90 seconds' : 'Fill in the left panel and click Generate'}
+                  {isGenerating ? 'Results in ~30–90 seconds' : 'Fill in the left panel and click Generate'}
                 </span>
               </div>
             )}
