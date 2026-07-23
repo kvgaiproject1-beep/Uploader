@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import UserMenu from '@/components/UserMenu'
 
 const steps = [
   {
@@ -67,14 +68,17 @@ export default async function LandingPage() {
 
         <nav aria-label="Primary" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {user ? (
-            <Link
-              href="/try-on"
-              className="btn-primary"
-              style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
-            >
-              Go to Try-On
-              <span aria-hidden="true">→</span>
-            </Link>
+            <>
+              <Link
+                href="/try-on"
+                className="btn-primary"
+                style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
+              >
+                Go to Try-On
+                <span aria-hidden="true">→</span>
+              </Link>
+              <UserMenu userEmail={user.email ?? ''} />
+            </>
           ) : (
             <>
               <Link

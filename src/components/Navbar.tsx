@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import UserMenu from '@/components/UserMenu'
 
 interface NavbarProps {
   userEmail: string
@@ -65,38 +66,10 @@ export default function Navbar({ userEmail }: NavbarProps) {
         </Link>
       </nav>
 
-      {/* User + Logout */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexShrink: 0 }}>
-        <span
-          aria-label={`Signed in as ${userEmail}`}
-          style={{
-            fontSize: '0.8125rem',
-            color: 'var(--t3)',
-            maxWidth: 'clamp(80px, 12vw, 160px)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            display: 'none',
-          }}
-          className="user-email-lg"
-        >
-          {userEmail}
-        </span>
-        <button
-          id="logout-btn"
-          onClick={handleLogout}
-          className="btn-danger"
-          aria-label="Sign out"
-        >
-          Sign&nbsp;Out
-        </button>
+      {/* User Dropdown */}
+      <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+        <UserMenu userEmail={userEmail} />
       </div>
-
-      <style>{`
-        @media (min-width: 640px) {
-          .user-email-lg { display: inline !important; }
-        }
-      `}</style>
     </header>
   )
 }
