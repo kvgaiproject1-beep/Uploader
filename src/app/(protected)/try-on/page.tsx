@@ -192,7 +192,7 @@ export default function TryOnPage() {
       if (abort.signal.aborted) throw new DOMException('Cancelled', 'AbortError')
 
       // 6. Extract result
-      const raw = result.data[0] as GradioImageOutput | string | null
+      const raw = (result.data as unknown[])[0] as GradioImageOutput | string | null
       if (!raw) throw new Error('No output image returned from AI model')
       const outputUrl = typeof raw === 'string' ? raw : raw.url ?? raw.path ?? null
       if (!outputUrl) throw new Error('Could not extract output image URL')
