@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { Garment } from '@/lib/types'
 import type { User } from '@supabase/supabase-js'
 
 type Status = 'idle' | 'uploading' | 'queued' | 'processing' | 'done' | 'error'
@@ -11,6 +10,29 @@ interface GradioImageOutput {
   url?: string
   path?: string
 }
+
+const LOCAL_GARMENTS = [
+  '/catalog/garments/04469_00.jpg',
+  '/catalog/garments/04743_00.jpg',
+  '/catalog/garments/09133_00.jpg',
+  '/catalog/garments/09163_00.jpg',
+  '/catalog/garments/09164_00.jpg',
+  '/catalog/garments/09166_00.jpg',
+  '/catalog/garments/09176_00.jpg',
+  '/catalog/garments/09236_00.jpg',
+]
+
+const LOCAL_MODELS = [
+  '/catalog/models/download.png',
+  '/catalog/models/download (1).png',
+  '/catalog/models/download (2).png',
+  '/catalog/models/download (3).png',
+  '/catalog/models/download (4).png',
+  '/catalog/models/download (5).png',
+  '/catalog/models/download (6).png',
+  '/catalog/models/download (7).png',
+  '/catalog/models/download (8).png',
+]
 
 const STATUS_UI: Record<Status, { label: string; color: string; icon: string; cssClass: string }> = {
   idle:       { label: 'Ready',      color: 'var(--t3)',    icon: '○', cssClass: '' },
@@ -23,84 +45,92 @@ const STATUS_UI: Record<Status, { label: string; color: string; icon: string; cs
 
 export default function TryOnPage() {
   const [user, setUser] = useState<User | null>(null)
-  const [garments, setGarments] = useState<Garment[]>([])
 
-  // Inputs
+  // ── Inputs ──────────────────────────────────────────────
+  // Human Model
+  const [humanTab, setHumanTab] = useState<'catalog' | 'upload'>('catalog')
   const [humanFile, setHumanFile] = useState<File | null>(null)
   const [humanPreview, setHumanPreview] = useState<string | null>(null)
+  const [selectedHumanUrl, setSelectedHumanUrl] = useState<string | null>(null)
+  
+  // Garment
+  const [garmentTab, setGarmentTab] = useState<'catalog' | 'upload'>('catalog')
   const [garmentFile, setGarmentFile] = useState<File | null>(null)
   const [garmentPreview, setGarmentPreview] = useState<string | null>(null)
-  const [selectedGarment, setSelectedGarment] = useState<Garment | null>(null)
+  const [selectedGarmentUrl, setSelectedGarmentUrl] = useState<string | null>(null)
+  
   const [description, setDescription] = useState('')
-  const [garmentTab, setGarmentTab] = useState<'catalog' | 'upload'>('catalog')
 
-  // Generation state
+  // ── Generation state ────────────────────────────────────
   const [status, setStatus] = useState<Status>('idle')
   const [resultUrl, setResultUrl] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
 
-  // Drag states
+  // ── Drag states ─────────────────────────────────────────
   const [humanDragging, setHumanDragging] = useState(false)
   const [garmentDragging, setGarmentDragging] = useState(false)
 
-  // File input refs — fixes the "rigged upload button" bug
+  // File input refs
   const humanInputRef = useRef<HTMLInputElement>(null)
   const garmentInputRef = useRef<HTMLInputElement>(null)
 
   // Abort controller for cancelling generation
   const abortRef = useRef<AbortController | null>(null)
 
-  // ── Load user + catalog ─────────────────────────────────
+  // ── Load user ───────────────────────────────────────────
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
-    supabase
-      .from('garments')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => { if (data) setGarments(data) })
   }, [])
 
-  // ── File handlers ───────────────────────────────────────
+  // ── Handlers ────────────────────────────────────────────
   const loadHuman = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) return
     setHumanFile(file)
     const url = URL.createObjectURL(file)
-    setHumanPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return url })
+    setHumanPreview((prev) => { if (prev && !selectedHumanUrl) URL.revokeObjectURL(prev); return url })
+    setSelectedHumanUrl(null)
+  }, [selectedHumanUrl])
+
+  const selectHumanCatalog = useCallback((url: string) => {
+    setSelectedHumanUrl(url)
+    setHumanPreview(url)
+    setHumanFile(null)
   }, [])
 
   const loadGarment = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) return
     setGarmentFile(file)
-    setGarmentPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file) })
-    setSelectedGarment(null)
-  }, [])
+    setGarmentPreview((prev) => { if (prev && !selectedGarmentUrl) URL.revokeObjectURL(prev); return URL.createObjectURL(file) })
+    setSelectedGarmentUrl(null)
+  }, [selectedGarmentUrl])
 
-  const selectCatalog = useCallback((g: Garment) => {
-    setSelectedGarment(g)
-    setGarmentPreview(g.image_url)
+  const selectGarmentCatalog = useCallback((url: string) => {
+    setSelectedGarmentUrl(url)
+    setGarmentPreview(url)
     setGarmentFile(null)
-    setDescription(g.description)
+    setDescription('a stylish garment') // Default description for local templates
   }, [])
 
   const clearHuman = useCallback(() => {
-    if (humanPreview) URL.revokeObjectURL(humanPreview)
+    if (humanPreview && !selectedHumanUrl) URL.revokeObjectURL(humanPreview)
     setHumanFile(null)
     setHumanPreview(null)
+    setSelectedHumanUrl(null)
     if (humanInputRef.current) humanInputRef.current.value = ''
-  }, [humanPreview])
+  }, [humanPreview, selectedHumanUrl])
 
   const clearGarment = useCallback(() => {
-    if (garmentPreview && !selectedGarment) URL.revokeObjectURL(garmentPreview)
+    if (garmentPreview && !selectedGarmentUrl) URL.revokeObjectURL(garmentPreview)
     setGarmentFile(null)
     setGarmentPreview(null)
-    setSelectedGarment(null)
+    setSelectedGarmentUrl(null)
     if (garmentInputRef.current) garmentInputRef.current.value = ''
-  }, [garmentPreview, selectedGarment])
+  }, [garmentPreview, selectedGarmentUrl])
 
-  // ── Drop helpers ────────────────────────────────────────
+  // Drop helpers
   const handleDrop = useCallback((e: React.DragEvent, loader: (f: File) => void, setDrag: (v: boolean) => void) => {
     e.preventDefault()
     setDrag(false)
@@ -112,7 +142,7 @@ export default function TryOnPage() {
 
   // ── Generate ────────────────────────────────────────────
   const handleGenerate = async () => {
-    if (!humanFile || (!garmentFile && !selectedGarment) || !user) return
+    if ((!humanFile && !selectedHumanUrl) || (!garmentFile && !selectedGarmentUrl) || !user) return
     if (isGenerating) return
 
     const abort = new AbortController()
@@ -129,18 +159,24 @@ export default function TryOnPage() {
     let currentJobId: string | null = null
 
     try {
-      // 1. Upload human photo
-      const humanPath = `${user.id}/human-${ts}.jpg`
-      const { error: humanUpErr } = await supabase.storage
-        .from('uploads')
-        .upload(humanPath, humanFile, { contentType: humanFile.type })
-      if (humanUpErr) throw new Error(`Human photo upload failed: ${humanUpErr.message}`)
+      // 1. Upload human photo if it's a file
+      let humanPublicUrl = selectedHumanUrl ?? null
+      let humanStoragePath: string | null = null
 
-      // 2. Upload custom garment if needed
+      if (humanFile && !selectedHumanUrl) {
+        humanStoragePath = `${user.id}/human-${ts}.jpg`
+        const { error: humanUpErr } = await supabase.storage
+          .from('uploads')
+          .upload(humanStoragePath, humanFile, { contentType: humanFile.type })
+        if (humanUpErr) throw new Error(`Human photo upload failed: ${humanUpErr.message}`)
+        humanPublicUrl = humanStoragePath
+      }
+
+      // 2. Upload custom garment if it's a file
       let garmentStoragePath: string | null = null
-      let garmentPublicUrl = selectedGarment?.image_url ?? null
+      let garmentPublicUrl = selectedGarmentUrl ?? null
 
-      if (garmentFile && !selectedGarment) {
+      if (garmentFile && !selectedGarmentUrl) {
         garmentStoragePath = `${user.id}/garment-${ts}.jpg`
         const { error: garmUpErr } = await supabase.storage
           .from('uploads')
@@ -155,7 +191,7 @@ export default function TryOnPage() {
         .from('tryon_jobs')
         .insert({
           user_id: user.id,
-          human_image_url: humanPath,
+          human_image_url: humanPublicUrl ?? humanStoragePath,
           garment_image_url: garmentPublicUrl ?? garmentStoragePath,
           garment_description: description || null,
           status: 'queued',
@@ -171,17 +207,19 @@ export default function TryOnPage() {
       setStatus('processing')
       await supabase.from('tryon_jobs').update({ status: 'processing' }).eq('id', job.id)
 
-      // 5. Call HF Space via Gradio (browser-side — no Vercel timeout)
+      // 5. Call HF Space via Gradio
       if (abort.signal.aborted) throw new DOMException('Cancelled', 'AbortError')
       const { Client } = await import('@gradio/client')
       const client = await Client.connect(process.env.NEXT_PUBLIC_HF_SPACE_ID!)
 
-      const garmentInput = garmentFile ?? (await fetchBlob(selectedGarment!.image_url))
+      // fetchBlob grabs the static /catalog/... files as blobs, or the user uploads
+      const humanInput = humanFile ?? (await fetchBlob(selectedHumanUrl!))
+      const garmentInput = garmentFile ?? (await fetchBlob(selectedGarmentUrl!))
 
       const result = await client.predict('/tryon', [
-        { background: humanFile, layers: [], composite: null },
+        { background: humanInput, layers: [], composite: null },
         garmentInput,
-        description || 'a garment',
+        description || 'a stylish garment',
         true,   // auto-mask
         false,  // crop
         30,     // denoise_steps
@@ -240,19 +278,17 @@ export default function TryOnPage() {
     }
   }
 
-  const canGenerate = !!humanFile && (!!garmentFile || !!selectedGarment) && !isGenerating
+  const canGenerate = (!!humanFile || !!selectedHumanUrl) && (!!garmentFile || !!selectedGarmentUrl) && !isGenerating
   const ui = STATUS_UI[status]
 
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: 'clamp(1rem, 3vw, 2rem) clamp(0.75rem, 3vw, 1.5rem)' }}>
-      {/* Hidden file inputs — triggered via ref */}
+      {/* Hidden file inputs */}
       <input
         ref={humanInputRef}
         type="file"
         accept="image/*"
         style={{ display: 'none' }}
-        aria-hidden="true"
-        tabIndex={-1}
         onChange={(e) => { if (e.target.files?.[0]) loadHuman(e.target.files[0]) }}
       />
       <input
@@ -260,12 +296,10 @@ export default function TryOnPage() {
         type="file"
         accept="image/*"
         style={{ display: 'none' }}
-        aria-hidden="true"
-        tabIndex={-1}
         onChange={(e) => { if (e.target.files?.[0]) loadGarment(e.target.files[0]) }}
       />
 
-      {/* Page header */}
+      {/* Header */}
       <div style={{ marginBottom: 'clamp(1.25rem, 3vw, 2rem)' }}>
         <h1
           className="font-display"
@@ -274,11 +308,10 @@ export default function TryOnPage() {
           Virtual Try-On
         </h1>
         <p style={{ color: 'var(--t2)', fontSize: '0.9375rem' }}>
-          Upload your photo and a garment to see a photorealistic AI preview.
+          Select or upload your photo and a garment to see a photorealistic AI preview.
         </p>
       </div>
 
-      {/* ── 2-col Layout ──────────────────────────────── */}
       <div
         style={{
           display: 'grid',
@@ -295,51 +328,84 @@ export default function TryOnPage() {
             <div id="human-label" className="section-label">
               <span aria-hidden="true">📸</span> Your Photo
             </div>
-            {humanPreview ? (
-              <div style={{ position: 'relative', borderRadius: 'var(--r-md)', overflow: 'hidden' }} className="a-fade-in">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={humanPreview}
-                  alt="Your uploaded photo"
-                  style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block' }}
-                />
-                <button
-                  onClick={clearHuman}
-                  aria-label="Remove photo"
-                  style={{
-                    position: 'absolute', top: 8, right: 8,
-                    background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
-                    border: '1px solid var(--b1)', borderRadius: 'var(--r-sm)',
-                    color: 'var(--t1)', padding: '0.3rem 0.7rem',
-                    cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
-                    minHeight: 32,
-                    transition: 'background 150ms var(--ease-out)',
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget.style.background = 'rgba(239,68,68,0.5)') }}
-                  onMouseLeave={(e) => { (e.currentTarget.style.background = 'rgba(0,0,0,0.7)') }}
-                >
-                  ✕ Remove
-                </button>
-              </div>
-            ) : (
-              <div
-                role="button"
-                tabIndex={0}
-                className={`upload-zone ${humanDragging ? 'dragging' : ''}`}
-                aria-label="Upload your photo — drag and drop or click to browse"
-                onClick={() => humanInputRef.current?.click()}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); humanInputRef.current?.click() } }}
-                onDragOver={handleDragOver}
-                onDragEnter={() => setHumanDragging(true)}
-                onDragLeave={() => setHumanDragging(false)}
-                onDrop={(e) => handleDrop(e, loadHuman, setHumanDragging)}
+
+            <div className="tab-group" role="tablist" style={{ marginBottom: '1rem' }}>
+              <button
+                role="tab"
+                className={`tab-btn ${humanTab === 'catalog' ? 'active' : ''}`}
+                onClick={() => setHumanTab('catalog')}
               >
-                <span className="upload-zone-icon" aria-hidden="true">🧍</span>
-                <span className="upload-title">Upload your photo</span>
-                <span className="upload-hint">Full-body photo works best</span>
-                <span className="upload-browse" aria-hidden="true">Browse files</span>
+                Choose Model
+              </button>
+              <button
+                role="tab"
+                className={`tab-btn ${humanTab === 'upload' ? 'active' : ''}`}
+                onClick={() => setHumanTab('upload')}
+              >
+                Upload Photo
+              </button>
+            </div>
+
+            <div hidden={humanTab !== 'catalog'}>
+              <div className="garment-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))' }}>
+                {LOCAL_MODELS.map((url, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`garment-thumb ${selectedHumanUrl === url ? 'selected' : ''}`}
+                    onClick={() => selectHumanCatalog(url)}
+                    aria-label={`Model template ${i + 1}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" />
+                    {selectedHumanUrl === url && (
+                      <span className="garment-selected-mark" aria-hidden="true">✓</span>
+                    )}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
+
+            <div hidden={humanTab !== 'upload'}>
+              {humanPreview && !selectedHumanUrl ? (
+                <div style={{ position: 'relative', borderRadius: 'var(--r-md)', overflow: 'hidden' }} className="a-fade-in">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={humanPreview}
+                    alt="Your uploaded photo"
+                    style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block' }}
+                  />
+                  <button
+                    onClick={clearHuman}
+                    style={{
+                      position: 'absolute', top: 8, right: 8,
+                      background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
+                      border: '1px solid var(--b1)', borderRadius: 'var(--r-sm)',
+                      color: 'var(--t1)', padding: '0.3rem 0.7rem',
+                      cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                    }}
+                  >
+                    ✕ Remove
+                  </button>
+                </div>
+              ) : (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className={`upload-zone ${humanDragging ? 'dragging' : ''}`}
+                  onClick={() => humanInputRef.current?.click()}
+                  onDragOver={handleDragOver}
+                  onDragEnter={() => setHumanDragging(true)}
+                  onDragLeave={() => setHumanDragging(false)}
+                  onDrop={(e) => handleDrop(e, loadHuman, setHumanDragging)}
+                >
+                  <span className="upload-zone-icon" aria-hidden="true">🧍</span>
+                  <span className="upload-title">Upload your photo</span>
+                  <span className="upload-hint">Full-body photo works best</span>
+                  <span className="upload-browse" aria-hidden="true">Browse files</span>
+                </div>
+              )}
+            </div>
           </section>
 
           {/* ── Garment ──────────────────────────────── */}
@@ -348,13 +414,9 @@ export default function TryOnPage() {
               <span aria-hidden="true">👗</span> Garment
             </div>
 
-            {/* Tab switcher */}
-            <div className="tab-group" role="tablist" aria-label="Garment source" style={{ marginBottom: '1rem' }}>
+            <div className="tab-group" role="tablist" style={{ marginBottom: '1rem' }}>
               <button
                 role="tab"
-                id="tab-catalog"
-                aria-selected={garmentTab === 'catalog'}
-                aria-controls="panel-catalog"
                 className={`tab-btn ${garmentTab === 'catalog' ? 'active' : ''}`}
                 onClick={() => setGarmentTab('catalog')}
               >
@@ -362,67 +424,35 @@ export default function TryOnPage() {
               </button>
               <button
                 role="tab"
-                id="tab-upload"
-                aria-selected={garmentTab === 'upload'}
-                aria-controls="panel-upload"
                 className={`tab-btn ${garmentTab === 'upload' ? 'active' : ''}`}
                 onClick={() => setGarmentTab('upload')}
               >
-                Upload
+                Upload Garment
               </button>
             </div>
 
-            {/* Catalog panel */}
-            <div
-              role="tabpanel"
-              id="panel-catalog"
-              aria-labelledby="tab-catalog"
-              hidden={garmentTab !== 'catalog'}
-            >
-              {garments.length === 0 ? (
-                <div
-                  style={{
-                    border: '1px dashed var(--b1)', borderRadius: 'var(--r-md)',
-                    padding: 'clamp(1.5rem, 3vw, 2.5rem)', textAlign: 'center',
-                    color: 'var(--t3)', fontSize: '0.875rem',
-                  }}
-                >
-                  <div aria-hidden="true" style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>📭</div>
-                  <p>No garments in catalog yet.</p>
-                  <p style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>
-                    Add rows to the <code style={{ color: 'var(--brand-400)', fontSize: '0.75rem' }}>garments</code> table in Supabase.
-                  </p>
-                </div>
-              ) : (
-                <div className="garment-grid">
-                  {garments.map((g) => (
-                    <button
-                      key={g.id}
-                      type="button"
-                      className={`garment-thumb ${selectedGarment?.id === g.id ? 'selected' : ''}`}
-                      onClick={() => selectCatalog(g)}
-                      aria-label={g.description}
-                      aria-pressed={selectedGarment?.id === g.id}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={g.image_url} alt="" />
-                      {selectedGarment?.id === g.id && (
-                        <span className="garment-selected-mark" aria-hidden="true">✓</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div hidden={garmentTab !== 'catalog'}>
+              <div className="garment-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))' }}>
+                {LOCAL_GARMENTS.map((url, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`garment-thumb ${selectedGarmentUrl === url ? 'selected' : ''}`}
+                    onClick={() => selectGarmentCatalog(url)}
+                    aria-label={`Garment template ${i + 1}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" />
+                    {selectedGarmentUrl === url && (
+                      <span className="garment-selected-mark" aria-hidden="true">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Upload panel */}
-            <div
-              role="tabpanel"
-              id="panel-upload"
-              aria-labelledby="tab-upload"
-              hidden={garmentTab !== 'upload'}
-            >
-              {garmentPreview && !selectedGarment ? (
+            <div hidden={garmentTab !== 'upload'}>
+              {garmentPreview && !selectedGarmentUrl ? (
                 <div style={{ position: 'relative', borderRadius: 'var(--r-md)', overflow: 'hidden' }} className="a-fade-in">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -432,18 +462,13 @@ export default function TryOnPage() {
                   />
                   <button
                     onClick={clearGarment}
-                    aria-label="Remove garment"
                     style={{
                       position: 'absolute', top: 8, right: 8,
                       background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
                       border: '1px solid var(--b1)', borderRadius: 'var(--r-sm)',
                       color: 'var(--t1)', padding: '0.3rem 0.7rem',
                       cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
-                      minHeight: 32,
-                      transition: 'background 150ms var(--ease-out)',
                     }}
-                    onMouseEnter={(e) => { (e.currentTarget.style.background = 'rgba(239,68,68,0.5)') }}
-                    onMouseLeave={(e) => { (e.currentTarget.style.background = 'rgba(0,0,0,0.7)') }}
                   >
                     ✕ Remove
                   </button>
@@ -453,9 +478,7 @@ export default function TryOnPage() {
                   role="button"
                   tabIndex={0}
                   className={`upload-zone ${garmentDragging ? 'dragging' : ''}`}
-                  aria-label="Upload garment image — drag and drop or click to browse"
                   onClick={() => garmentInputRef.current?.click()}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); garmentInputRef.current?.click() } }}
                   onDragOver={handleDragOver}
                   onDragEnter={() => setGarmentDragging(true)}
                   onDragLeave={() => setGarmentDragging(false)}
@@ -469,8 +492,7 @@ export default function TryOnPage() {
               )}
             </div>
 
-            {/* Description */}
-            {(garmentFile || selectedGarment) && (
+            {(garmentFile || selectedGarmentUrl) && (
               <div style={{ marginTop: '1rem' }} className="a-fade-in">
                 <label htmlFor="garment-desc" className="form-label">
                   Description <span style={{ fontWeight: 400, color: 'var(--t3)' }}>(optional)</span>
@@ -490,12 +512,10 @@ export default function TryOnPage() {
           {/* Generate / Cancel buttons */}
           <div style={{ display: 'flex', gap: '0.625rem' }}>
             <button
-              id="generate-tryon-btn"
               className="btn-primary"
               onClick={handleGenerate}
               disabled={!canGenerate}
               aria-busy={isGenerating}
-              aria-label={isGenerating ? 'Generating try-on preview' : 'Generate try-on preview'}
               style={{ flex: 1, padding: '1rem', fontSize: '1rem', justifyContent: 'center' }}
             >
               {isGenerating ? (
@@ -511,10 +531,8 @@ export default function TryOnPage() {
             </button>
             {isGenerating && (
               <button
-                id="cancel-tryon-btn"
                 className="btn-danger"
                 onClick={() => { abortRef.current?.abort() }}
-                aria-label="Cancel generation"
                 style={{ padding: '1rem 1.25rem', fontSize: '0.9375rem', justifyContent: 'center', minWidth: 100 }}
               >
                 ✕ Cancel
@@ -574,7 +592,6 @@ export default function TryOnPage() {
                 <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                   <button
                     className="btn-primary"
-                    aria-label="Download result image"
                     style={{ flex: 1, padding: '0.75rem', justifyContent: 'center', fontSize: '0.9375rem' }}
                     onClick={async () => {
                       try {
@@ -588,7 +605,7 @@ export default function TryOnPage() {
                         a.click()
                         document.body.removeChild(a)
                         URL.revokeObjectURL(blobUrl)
-                      } catch { /* fallback: open in new tab */ window.open(resultUrl!, '_blank') }
+                      } catch { window.open(resultUrl!, '_blank') }
                     }}
                   >
                     <span aria-hidden="true">⬇</span> Download
@@ -615,7 +632,7 @@ export default function TryOnPage() {
                   {isGenerating ? 'AI is working its magic…' : 'Your result will appear here'}
                 </span>
                 <span style={{ fontSize: '0.8125rem' }}>
-                  {isGenerating ? 'Results in ~30–90 seconds' : 'Fill in the left panel and click Generate'}
+                  {is insertions ? 'Results in ~30–90 seconds' : 'Fill in the left panel and click Generate'}
                 </span>
               </div>
             )}
@@ -628,6 +645,6 @@ export default function TryOnPage() {
 
 async function fetchBlob(url: string): Promise<Blob> {
   const res = await fetch(url)
-  if (!res.ok) throw new Error(`Could not fetch garment image: ${url}`)
+  if (!res.ok) throw new Error(`Could not fetch template image: ${url}`)
   return res.blob()
 }
