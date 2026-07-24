@@ -141,14 +141,27 @@ export default function TryOnPage() {
   }, [garmentBackPreview])
 
   // Helper to convert URL or File to Blob
-  const getBlobFromSource = async (file: File | null, url: string | null): Promise<Blob> => {
-    if (file) return file
-    if (url) {
-      const res = await fetch(url)
-      return res.blob()
-    }
-    throw new Error('No valid image provided')
+  async function getDataUrlFromSource(file: File | null, url: string | null): Promise<string> {
+  if (file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
   }
+  if (url) {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  }
+  throw new Error('No valid image provided')
+}
 
   // ── Generation Logic ────────────────────────────────────
   const handleGeneratePhotoshoot = async () => {
@@ -178,17 +191,13 @@ export default function TryOnPage() {
       const { fal } = await import('@fal-ai/client')
       fal.config({ proxyUrl: '/api/fal/proxy' })
 
-      // Fetch front garment blob
-      const frontGarmentBlob = await getBlobFromSource(garmentFrontFile, selectedGarmentFrontUrl)
+      // Fetch front garment data url
+      const frontGarmentUrl = await getDataUrlFromSource(garmentFrontFile, selectedGarmentFrontUrl)
       
-      // Fetch back garment blob if available, else fallback to front
-      const backGarmentBlob = garmentBackFile || garmentBackPreview
-        ? await getBlobFromSource(garmentBackFile, garmentBackPreview)
-        : frontGarmentBlob
-
-      // Upload garments to Fal CDN once to save time
-      const frontGarmentUrl = await fal.storage.upload(frontGarmentBlob)
-      const backGarmentUrl = await fal.storage.upload(backGarmentBlob)
+      // Fetch back garment data url if available, else fallback to front
+      const backGarmentUrl = garmentBackFile || garmentBackPreview
+        ? await getDataUrlFromSource(garmentBackFile, garmentBackPreview)
+        : frontGarmentUrl
 
       // Function to generate a single pose
       const generatePose = async (pose: PoseConfig) => {
@@ -198,9 +207,8 @@ export default function TryOnPage() {
         }))
 
         try {
-          // Upload base model to Fal
-          const modelBlob = await getBlobFromSource(null, pose.modelUrl)
-          const modelUrl = await fal.storage.upload(modelBlob)
+          // Load base model as data URL
+          const modelUrl = await getDataUrlFromSource(null, pose.modelUrl)
           const activeGarmentUrl = pose.id === 'back' ? backGarmentUrl : frontGarmentUrl
 
           // Call Fal API (Kolors Virtual Try-On)
@@ -236,6 +244,14 @@ export default function TryOnPage() {
 
     } catch (err: any) {
       console.error('Photoshoot generation failure:', err)
+      
+      // Update UI with the global error so it's not stuck on "Queued"
+      const failedResults = { ...poseResults }
+      currentModel.poses.filter(p => selectedPoses.includes(p.id)).forEach(p => {
+        failedResults[p.id] = { ...failedResults[p.id], status: 'error', error: err.message || 'Initialization failed' }
+      })
+      setPoseResults(failedResults)
+
     } finally {
       setIsGenerating(false)
     }
@@ -255,10 +271,10 @@ export default function TryOnPage() {
 
       {/* Main Studio Workspace */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', gap: '2rem' }}>
-        
+
         {/* Left Column: Config Panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
+
           {/* Step 1: Garment Upload */}
           <div className="card" style={{ padding: '1.5rem' }}>
             <h2 className="font-display" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1rem' }}>
@@ -371,9 +387,9 @@ export default function TryOnPage() {
                     <img src={garmentBackPreview} alt="Back Garment" style={{ maxHeight: 120, objectFit: 'contain', borderRadius: 'var(--r-sm)' }} />
                     <button
                       type="button"
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        clearBackGarment(); 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearBackGarment();
                         setSelectedPoses(prev => prev.filter(p => p !== 'back'));
                       }}
                       className="btn-danger"
@@ -453,8 +469,8 @@ export default function TryOnPage() {
                 const isSelected = selectedPoses.includes(pose.id);
                 return (
                   <label key={pose.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', padding: '0.5rem', borderRadius: 'var(--r-sm)', background: isSelected ? 'var(--brand-dim)' : 'var(--s-overlay)', border: `1px solid ${isSelected ? 'var(--brand-400)' : 'var(--b1)'}`, transition: 'all 0.2s' }}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={isSelected}
                       onChange={() => {
                         if (pose.id === 'back' && !isSelected) {
@@ -463,7 +479,7 @@ export default function TryOnPage() {
                             return;
                           }
                         }
-                        setSelectedPoses(prev => 
+                        setSelectedPoses(prev =>
                           prev.includes(pose.id) ? prev.filter(p => p !== pose.id) : [...prev, pose.id]
                         );
                       }}
