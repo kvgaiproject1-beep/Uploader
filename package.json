@@ -11,7 +11,6 @@
   "dependencies": {
     "@fal-ai/client": "^1.10.1",
     "@fal-ai/server-proxy": "^1.2.1",
-    "@fal-ai/serverless-proxy": "^0.10.0",
     "@gradio/client": "^2.3.1",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.8",
