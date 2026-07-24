@@ -175,7 +175,7 @@ export default function TryOnPage() {
     })
 
     try {
-      const { Client, handle_file } = await import('@gradio/client')
+      const { Client } = await import('@gradio/client')
       const spaceId = process.env.NEXT_PUBLIC_HF_SPACE_ID || 'sharjilsharma/virtual-try-on-test'
       const client = await Client.connect(spaceId, {
         token: process.env.NEXT_PUBLIC_HF_TOKEN as any
@@ -210,8 +210,8 @@ export default function TryOnPage() {
 
           // Call Gradio API (IDM-VTON custom space)
           const result = await client.predict("/tryon", [
-            { background: handle_file(modelFile), layers: [], composite: null }, // input_dict
-            handle_file(activeGarmentFile),                                      // garm_img
+            { background: modelFile, layers: [], composite: null },              // input_dict
+            activeGarmentFile,                                                   // garm_img
             garmentDescription.trim(),                                           // garment_des
             true,                                                                // is_checked (use auto-crop)
             true,                                                                // is_checked_crop (use auto-crop & resize)
