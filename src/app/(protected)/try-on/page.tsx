@@ -212,11 +212,14 @@ export default function TryOnPage() {
           ]) as any
 
           let outUrl: string | null = null
-          if (result && Array.isArray(result) && result[0]) {
-            outUrl = result[0].url
+          if (result && Array.isArray(result) && result.length > 0) {
+            outUrl = result[0]?.url || result[0]?.path || (typeof result[0] === 'string' ? result[0] : null)
           }
 
-          if (!outUrl) throw new Error('No image returned from Gradio API')
+          if (!outUrl) {
+            console.error("Gradio API raw result:", result)
+            throw new Error(`No image returned. API responded with: ${JSON.stringify(result)}`)
+          }
 
           // Save to Supabase History
           if (user) {
