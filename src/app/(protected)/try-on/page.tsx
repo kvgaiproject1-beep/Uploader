@@ -183,17 +183,16 @@ export default function TryOnPage() {
       let client: any;
       try {
         const { Client } = await import('@gradio/client')
-      const spaceId = process.env.NEXT_PUBLIC_HF_SPACE_ID || 'sharjilsharma/virtual-try-on-test'
-      const fullSpaceUrl = spaceId.startsWith('http') ? spaceId : `https://huggingface.co/spaces/${spaceId}`
-      
-      client = await Client.connect(fullSpaceUrl, {
-        token: process.env.NEXT_PUBLIC_HF_TOKEN as any
-      })
-    } catch (error: any) {
-      setIsGenerating(false)
-      alert(`[Client Connect Error] ${error.message || error}`)
-      return
-    }
+        const spaceId = process.env.NEXT_PUBLIC_HF_SPACE_ID || 'sharjilsharma/virtual-try-on-test'
+        
+        client = await Client.connect(spaceId, {
+          token: process.env.NEXT_PUBLIC_HF_TOKEN as any
+        })
+      } catch (error: any) {
+        setIsGenerating(false)
+        alert(`[Client Connect Error] ${error.message || error}`)
+        return
+      }
 
     let frontGarmentFile: File;
     let backGarmentFile: File;
