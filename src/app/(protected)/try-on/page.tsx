@@ -140,14 +140,16 @@ export default function TryOnPage() {
     setGarmentBackPreview(null)
   }, [garmentBackPreview])
 
-  // Helper to convert URL or File to Blob for Gradio
+  // Helper to fetch blob from a File or URL
   const getBlobFromSource = async (file: File | null, url: string | null): Promise<Blob> => {
     if (file) return file
     if (url) {
-      const res = await fetch(url)
+      const fetchUrl = url.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(url)}` : url
+      const res = await fetch(fetchUrl)
+      if (!res.ok) throw new Error(`Failed to fetch image: ${res.statusText}`)
       return res.blob()
     }
-    throw new Error('No valid image provided')
+    throw new Error('No source provided for blob')
   }
 
   // ── Generation Logic ────────────────────────────────────
@@ -177,9 +179,8 @@ export default function TryOnPage() {
     try {
       const { Client } = await import('@gradio/client')
       const spaceId = process.env.NEXT_PUBLIC_HF_SPACE_ID || 'sharjilsharma/virtual-try-on-test'
-      const fullSpaceUrl = spaceId.startsWith('http') ? spaceId : `https://huggingface.co/spaces/${spaceId}`
       
-      const client = await Client.connect(fullSpaceUrl, {
+      const client = await Client.connect(spaceId, {
         token: process.env.NEXT_PUBLIC_HF_TOKEN as any
       })
 
