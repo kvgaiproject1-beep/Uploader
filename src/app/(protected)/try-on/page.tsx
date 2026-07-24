@@ -203,12 +203,11 @@ export default function TryOnPage() {
           const modelUrl = await fal.storage.upload(modelBlob)
           const activeGarmentUrl = pose.id === 'back' ? backGarmentUrl : frontGarmentUrl
 
-          // Call Fal API (IDM-VTON)
-          const result = await fal.subscribe("fal-ai/idm-vton", {
+          // Call Fal API (Kolors Virtual Try-On)
+          const result = await fal.subscribe("fal-ai/kling/v1-5/kolors-virtual-try-on", {
             input: {
               human_image_url: modelUrl,
               garment_image_url: activeGarmentUrl,
-              description: garmentDescription.trim(),
             },
           })
 
