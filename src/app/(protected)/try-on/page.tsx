@@ -219,6 +219,7 @@ export default function TryOnPage() {
           // Save to Supabase History
           if (user) {
             try {
+              const supabase = createClient()
               // 1. Fetch generated image as Blob
               const outRes = await fetch(outUrl)
               const outBlob = await outRes.blob()
