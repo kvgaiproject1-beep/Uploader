@@ -179,8 +179,9 @@ export default function TryOnPage() {
     try {
       const { Client } = await import('@gradio/client')
       const spaceId = process.env.NEXT_PUBLIC_HF_SPACE_ID || 'sharjilsharma/virtual-try-on-test'
+      const fullSpaceUrl = spaceId.startsWith('http') ? spaceId : `https://huggingface.co/spaces/${spaceId}`
       
-      const client = await Client.connect(spaceId, {
+      const client = await Client.connect(fullSpaceUrl, {
         token: process.env.NEXT_PUBLIC_HF_TOKEN as any
       })
 
