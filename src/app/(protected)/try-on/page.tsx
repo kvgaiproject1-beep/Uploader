@@ -140,28 +140,15 @@ export default function TryOnPage() {
     setGarmentBackPreview(null)
   }, [garmentBackPreview])
 
-  // Helper to convert URL or File to Blob
-  async function getDataUrlFromSource(file: File | null, url: string | null): Promise<string> {
-  if (file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
+  // Helper to convert URL or File to Blob for Gradio
+  const getBlobFromSource = async (file: File | null, url: string | null): Promise<Blob> => {
+    if (file) return file
+    if (url) {
+      const res = await fetch(url)
+      return res.blob()
+    }
+    throw new Error('No valid image provided')
   }
-  if (url) {
-    const res = await fetch(url)
-    const blob = await res.blob()
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(blob)
-    })
-  }
-  throw new Error('No valid image provided')
-}
 
   // ── Generation Logic ────────────────────────────────────
   const handleGeneratePhotoshoot = async () => {
@@ -188,16 +175,16 @@ export default function TryOnPage() {
     })
 
     try {
-      const { fal } = await import('@fal-ai/client')
-      fal.config({ proxyUrl: '/api/fal/proxy' })
+      const { Client, handle_file } = await import('@gradio/client')
+      const client = await Client.connect("Nymbo/Virtual-Try-On")
 
-      // Fetch front garment data url
-      const frontGarmentUrl = await getDataUrlFromSource(garmentFrontFile, selectedGarmentFrontUrl)
+      // Fetch front garment blob
+      const frontGarmentBlob = await getBlobFromSource(garmentFrontFile, selectedGarmentFrontUrl)
       
-      // Fetch back garment data url if available, else fallback to front
-      const backGarmentUrl = garmentBackFile || garmentBackPreview
-        ? await getDataUrlFromSource(garmentBackFile, garmentBackPreview)
-        : frontGarmentUrl
+      // Fetch back garment blob if available, else fallback to front
+      const backGarmentBlob = garmentBackFile || garmentBackPreview
+        ? await getBlobFromSource(garmentBackFile, garmentBackPreview)
+        : frontGarmentBlob
 
       // Function to generate a single pose
       const generatePose = async (pose: PoseConfig) => {
@@ -207,24 +194,27 @@ export default function TryOnPage() {
         }))
 
         try {
-          // Load base model as data URL
-          const modelUrl = await getDataUrlFromSource(null, pose.modelUrl)
-          const activeGarmentUrl = pose.id === 'back' ? backGarmentUrl : frontGarmentUrl
+          // Load base model as Blob
+          const modelBlob = await getBlobFromSource(null, pose.modelUrl)
+          const activeGarmentBlob = pose.id === 'back' ? backGarmentBlob : frontGarmentBlob
 
-          // Call Fal API (Kolors Virtual Try-On)
-          const result = await fal.subscribe("fal-ai/kling/v1-5/kolors-virtual-try-on", {
-            input: {
-              human_image_url: modelUrl,
-              garment_image_url: activeGarmentUrl,
-            },
-          })
+          // Call Gradio API (Nymbo/Virtual-Try-On)
+          const result = await client.predict("/tryon", {
+            dict: { background: handle_file(modelBlob), layers: [], composite: null },
+            garm_img: handle_file(activeGarmentBlob),
+            garment_des: garmentDescription.trim(),
+            is_checked: true,
+            is_checked_crop: false,
+            denoise_steps: 30,
+            seed: 42,
+          }) as any
 
           let outUrl: string | null = null
-          if (result && result.data && (result.data as any).image && (result.data as any).image.url) {
-            outUrl = (result.data as any).image.url
+          if (result && Array.isArray(result) && result[0]) {
+            outUrl = result[0].url
           }
 
-          if (!outUrl) throw new Error('No image returned from Fal API')
+          if (!outUrl) throw new Error('No image returned from Gradio API')
 
           setPoseResults((prev) => ({
             ...prev,
