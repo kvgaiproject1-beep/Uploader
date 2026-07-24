@@ -177,7 +177,9 @@ export default function TryOnPage() {
     try {
       const { Client } = await import('@gradio/client')
       const spaceId = process.env.NEXT_PUBLIC_HF_SPACE_ID || 'sharjilsharma/virtual-try-on-test'
-      const client = await Client.connect(spaceId, {
+      const fullSpaceUrl = spaceId.startsWith('http') ? spaceId : `https://huggingface.co/spaces/${spaceId}`
+      
+      const client = await Client.connect(fullSpaceUrl, {
         token: process.env.NEXT_PUBLIC_HF_TOKEN as any
       })
 
@@ -271,12 +273,17 @@ export default function TryOnPage() {
             ...prev,
             [pose.id]: { ...prev[pose.id], status: 'done', resultUrl: outUrl },
           }))
-        } catch (err: any) {
-          console.error(`Error generating ${pose.label}:`, err)
+        } catch (error) {
+          console.error(`Error generating ${pose.id}:`, error)
           setPoseResults((prev) => ({
             ...prev,
-            [pose.id]: { ...prev[pose.id], status: 'error', error: err.message || 'Generation failed' },
+            [pose.id]: {
+              ...prev[pose.id],
+              status: 'error',
+              error: error instanceof Error ? (error.stack || error.message) : 'Generation failed',
+            },
           }))
+          toast.error(`Pose ${pose.label} failed: ${error instanceof Error ? (error.stack || error.message) : 'Unknown error'}`)
         }
       }
 
