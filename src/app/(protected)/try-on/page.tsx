@@ -216,6 +216,41 @@ export default function TryOnPage() {
 
           if (!outUrl) throw new Error('No image returned from Gradio API')
 
+          // Save to Supabase History
+          if (user) {
+            try {
+              // 1. Fetch generated image as Blob
+              const outRes = await fetch(outUrl)
+              const outBlob = await outRes.blob()
+              
+              // 2. Upload to Supabase Storage
+              const filename = `${user.id}/${Date.now()}-${pose.id}.jpg`
+              const { error: uploadErr } = await supabase.storage
+                .from('outputs')
+                .upload(filename, outBlob, { contentType: 'image/jpeg' })
+                
+              if (!uploadErr) {
+                const { data: { publicUrl } } = supabase.storage.from('outputs').getPublicUrl(filename)
+                
+                // 3. Insert into tryon_jobs
+                await supabase.from('tryon_jobs').insert({
+                  user_id: user.id,
+                  human_image_url: pose.modelUrl,
+                  garment_image_url: selectedGarmentFrontUrl || '',
+                  garment_description: `${garmentDescription.trim()} (${pose.label})`,
+                  status: 'done',
+                  output_image_url: publicUrl,
+                  completed_at: new Date().toISOString()
+                })
+                
+                // Use the permanent Supabase URL for the UI result
+                outUrl = publicUrl
+              }
+            } catch (saveErr) {
+              console.error(`Failed to save ${pose.label} to history:`, saveErr)
+            }
+          }
+
           setPoseResults((prev) => ({
             ...prev,
             [pose.id]: { ...prev[pose.id], status: 'done', resultUrl: outUrl },
