@@ -175,18 +175,24 @@ export default function TryOnPage() {
     })
 
     try {
-      const { Client } = await import('@gradio/client')
-      const client = await Client.connect(process.env.NEXT_PUBLIC_HF_SPACE_ID!, {
+      const { Client, handle_file } = await import('@gradio/client')
+      const spaceId = process.env.NEXT_PUBLIC_HF_SPACE_ID || 'sharjilsharma/virtual-try-on-test'
+      const client = await Client.connect(spaceId, {
         token: process.env.NEXT_PUBLIC_HF_TOKEN as any
       })
 
-      // Fetch front garment blob
+      // Fetch front garment blob and convert to File with name
       const frontGarmentBlob = await getBlobFromSource(garmentFrontFile, selectedGarmentFrontUrl)
+      const frontGarmentFile = new File([frontGarmentBlob], "front_garment.jpg", { type: "image/jpeg" })
       
       // Fetch back garment blob if available, else fallback to front
-      const backGarmentBlob = garmentBackFile || garmentBackPreview
-        ? await getBlobFromSource(garmentBackFile, garmentBackPreview)
-        : frontGarmentBlob
+      let backGarmentFile: File
+      if (garmentBackFile || garmentBackPreview) {
+        const backBlob = await getBlobFromSource(garmentBackFile, garmentBackPreview)
+        backGarmentFile = new File([backBlob], "back_garment.jpg", { type: "image/jpeg" })
+      } else {
+        backGarmentFile = frontGarmentFile
+      }
 
       // Function to generate a single pose
       const generatePose = async (pose: PoseConfig) => {
@@ -196,14 +202,16 @@ export default function TryOnPage() {
         }))
 
         try {
-          // Load base model as Blob
+          // Load base model as Blob and convert to File with name
           const modelBlob = await getBlobFromSource(null, pose.modelUrl)
-          const activeGarmentBlob = pose.id === 'back' ? backGarmentBlob : frontGarmentBlob
+          const modelFile = new File([modelBlob], "model.jpg", { type: "image/jpeg" })
+          
+          const activeGarmentFile = pose.id === 'back' ? backGarmentFile : frontGarmentFile
 
           // Call Gradio API (IDM-VTON custom space)
           const result = await client.predict("/tryon", [
-            { background: modelBlob, layers: [], composite: null },              // input_dict
-            activeGarmentBlob,                                                   // garm_img
+            { background: handle_file(modelFile), layers: [], composite: null }, // input_dict
+            handle_file(activeGarmentFile),                                      // garm_img
             garmentDescription.trim(),                                           // garment_des
             true,                                                                // is_checked (use auto-crop)
             true,                                                                // is_checked_crop (use auto-crop & resize)
