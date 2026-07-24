@@ -141,27 +141,30 @@ export default function TryOnPage() {
   }, [garmentBackPreview])
 
   // Helper to fetch blob from a File or URL
-  const getBlobFromSource = async (file: File | null, url: string | null): Promise<Blob> => {
-    if (file) return file
-    if (url) {
-      const fetchUrl = url.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(url)}` : url
-      const res = await fetch(fetchUrl)
-      if (!res.ok) throw new Error(`Failed to fetch image: ${res.statusText}`)
-      return res.blob()
+  const getBlobFromSource = async (file: File | null, url: string | null, sourceName: string): Promise<Blob> => {
+    try {
+      if (file) return file
+      if (url) {
+        const fetchUrl = url.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(url)}` : url
+        const res = await fetch(fetchUrl)
+        if (!res.ok) throw new Error(`Failed to fetch image: ${res.statusText}`)
+        return res.blob()
+      }
+      throw new Error('No source provided for blob')
+    } catch (error: any) {
+      throw new Error(`[${sourceName} Fetch Error] ${error.message || error}`)
     }
-    throw new Error('No source provided for blob')
   }
 
   // ── Generation Logic ────────────────────────────────────
   const handleGeneratePhotoshoot = async () => {
-    const frontSource = garmentFrontFile || selectedGarmentFrontUrl
-    if (!frontSource) {
-      alert('Please select or upload a front garment image.')
+    if (!selectedGarmentFrontUrl && !garmentFrontFile) {
+      alert('Please upload or select a front garment.')
       return
     }
 
     if (!garmentDescription.trim()) {
-      alert('Please enter a description for the garment (e.g. "Red plaid short-sleeve shirt").')
+      alert('Please enter a description for the garment.')
       return
     }
 
@@ -177,43 +180,64 @@ export default function TryOnPage() {
     })
 
     try {
-      const { Client } = await import('@gradio/client')
+      let client: any;
+      try {
+        const { Client } = await import('@gradio/client')
       const spaceId = process.env.NEXT_PUBLIC_HF_SPACE_ID || 'sharjilsharma/virtual-try-on-test'
       const fullSpaceUrl = spaceId.startsWith('http') ? spaceId : `https://huggingface.co/spaces/${spaceId}`
       
-      const client = await Client.connect(fullSpaceUrl, {
+      client = await Client.connect(fullSpaceUrl, {
         token: process.env.NEXT_PUBLIC_HF_TOKEN as any
       })
+    } catch (error: any) {
+      setIsGenerating(false)
+      alert(`[Client Connect Error] ${error.message || error}`)
+      return
+    }
 
+    let frontGarmentFile: File;
+    let backGarmentFile: File;
+    try {
       // Fetch front garment blob and convert to File with name
-      const frontGarmentBlob = await getBlobFromSource(garmentFrontFile, selectedGarmentFrontUrl)
-      const frontGarmentFile = new File([frontGarmentBlob], "front_garment.jpg", { type: "image/jpeg" })
+      const frontGarmentBlob = await getBlobFromSource(garmentFrontFile, selectedGarmentFrontUrl, 'FrontGarment')
+      frontGarmentFile = new File([frontGarmentBlob], "front_garment.jpg", { type: "image/jpeg" })
       
       // Fetch back garment blob if available, else fallback to front
-      let backGarmentFile: File
       if (garmentBackFile || garmentBackPreview) {
-        const backBlob = await getBlobFromSource(garmentBackFile, garmentBackPreview)
+        const backBlob = await getBlobFromSource(garmentBackFile, garmentBackPreview, 'BackGarment')
         backGarmentFile = new File([backBlob], "back_garment.jpg", { type: "image/jpeg" })
       } else {
         backGarmentFile = frontGarmentFile
       }
+    } catch (error: any) {
+      setIsGenerating(false)
+      alert(`[Garment Prep Error] ${error.message || error}`)
+      return
+    }
 
-      // Function to generate a single pose
-      const generatePose = async (pose: PoseConfig) => {
-        setPoseResults((prev) => ({
-          ...prev,
-          [pose.id]: { ...prev[pose.id], status: 'processing' },
-        }))
+    // Function to generate a single pose
+    const generatePose = async (pose: PoseConfig) => {
+      setPoseResults((prev) => ({
+        ...prev,
+        [pose.id]: { ...prev[pose.id], status: 'processing' },
+      }))
 
+      try {
+        let modelFile: File;
         try {
           // Load base model as Blob and convert to File with name
-          const modelBlob = await getBlobFromSource(null, pose.modelUrl)
-          const modelFile = new File([modelBlob], "model.jpg", { type: "image/jpeg" })
-          
-          const activeGarmentFile = pose.id === 'back' ? backGarmentFile : frontGarmentFile
+          const modelBlob = await getBlobFromSource(null, pose.modelUrl, `ModelPose_${pose.id}`)
+          modelFile = new File([modelBlob], "model.jpg", { type: "image/jpeg" })
+        } catch (error: any) {
+          throw new Error(`[Model Prep Error] ${error.message || error}`)
+        }
+        
+        const activeGarmentFile = pose.id === 'back' ? backGarmentFile : frontGarmentFile
 
+        let result: any;
+        try {
           // Call Gradio API (IDM-VTON custom space)
-          const result = await client.predict("/tryon", [
+          result = await client.predict("/tryon", [
             { background: modelFile, layers: [], composite: null },              // input_dict
             activeGarmentFile,                                                   // garm_img
             garmentDescription.trim(),                                           // garment_des
@@ -223,55 +247,61 @@ export default function TryOnPage() {
             42,                                                                  // seed
             false,                                                               // auto_post_instagram
             "",                                                                  // instagram_caption
-          ]) as any
+          ])
+        } catch (error: any) {
+          throw new Error(`[Gradio Predict Error] ${error.message || error}`)
+        }
 
-          let outUrl: string | null = null
-          if (result && Array.isArray(result) && result.length > 0) {
-            outUrl = result[0]?.url || result[0]?.path || (typeof result[0] === 'string' ? result[0] : null)
-          }
+        let outUrl: string | null = null
+        if (result && Array.isArray(result) && result.length > 0) {
+          outUrl = result[0]?.url || result[0]?.path || (typeof result[0] === 'string' ? result[0] : null)
+        }
 
-          if (!outUrl) {
-            console.error("Gradio API raw result:", result)
-            throw new Error(`No image returned. API responded with: ${JSON.stringify(result)}`)
-          }
+        if (!outUrl) {
+          console.error("Gradio API raw result:", result)
+          throw new Error(`[Invalid Result Error] No image returned. API responded with: ${JSON.stringify(result)}`)
+        }
 
-          // Save to Supabase History
-          if (user) {
-            try {
-              const supabase = createClient()
-              // 1. Fetch generated image as Blob
-              const outRes = await fetch(outUrl)
-              const outBlob = await outRes.blob()
+        // Save to Supabase History
+        if (user) {
+          try {
+            const supabase = createClient()
+            
+            // 1. Fetch generated image as Blob
+            const outFetchUrl = outUrl.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(outUrl)}` : outUrl
+            const outRes = await fetch(outFetchUrl)
+            if (!outRes.ok) throw new Error(`Status ${outRes.status} ${outRes.statusText}`)
+            const outBlob = await outRes.blob()
+            
+            // 2. Upload to Supabase Storage
+            const filename = `${user.id}/${Date.now()}-${pose.id}.jpg`
+            const { error: uploadErr } = await supabase.storage
+              .from('outputs')
+              .upload(filename, outBlob, { contentType: 'image/jpeg' })
               
-              // 2. Upload to Supabase Storage
-              const filename = `${user.id}/${Date.now()}-${pose.id}.jpg`
-              const { error: uploadErr } = await supabase.storage
-                .from('outputs')
-                .upload(filename, outBlob, { contentType: 'image/jpeg' })
-                
-              if (!uploadErr) {
-                const { data: { publicUrl } } = supabase.storage.from('outputs').getPublicUrl(filename)
-                
-                // 3. Insert into tryon_jobs
-                await supabase.from('tryon_jobs').insert({
-                  user_id: user.id,
-                  human_image_url: pose.modelUrl,
-                  garment_image_url: selectedGarmentFrontUrl || '',
-                  garment_description: `${garmentDescription.trim()} (${pose.label})`,
-                  status: 'done',
-                  output_image_url: publicUrl,
-                  completed_at: new Date().toISOString()
-                })
-                
-                // Use the permanent Supabase URL for the UI result
-                outUrl = publicUrl
-              }
-            } catch (saveErr) {
-              console.error(`Failed to save ${pose.label} to history:`, saveErr)
+            if (!uploadErr) {
+              const { data: { publicUrl } } = supabase.storage.from('outputs').getPublicUrl(filename)
+              
+              // 3. Insert into tryon_jobs
+              await supabase.from('tryon_jobs').insert({
+                user_id: user.id,
+                human_image_url: pose.modelUrl,
+                garment_image_url: selectedGarmentFrontUrl || '',
+                garment_description: `${garmentDescription.trim()} (${pose.label})`,
+                status: 'done',
+                output_image_url: publicUrl,
+                completed_at: new Date().toISOString()
+              })
+              
+              // Use the permanent Supabase URL for the UI result
+              outUrl = publicUrl
             }
+          } catch (saveErr) {
+            console.error(`Failed to save ${pose.label} to history:`, saveErr)
           }
+        }
 
-          setPoseResults((prev) => ({
+        setPoseResults((prev) => ({
             ...prev,
             [pose.id]: { ...prev[pose.id], status: 'done', resultUrl: outUrl },
           }))
