@@ -283,7 +283,6 @@ export default function TryOnPage() {
               error: error instanceof Error ? (error.stack || error.message) : 'Generation failed',
             },
           }))
-          toast.error(`Pose ${pose.label} failed: ${error instanceof Error ? (error.stack || error.message) : 'Unknown error'}`)
         }
       }
 
