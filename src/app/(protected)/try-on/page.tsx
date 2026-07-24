@@ -198,15 +198,17 @@ export default function TryOnPage() {
           const modelBlob = await getBlobFromSource(null, pose.modelUrl)
           const activeGarmentBlob = pose.id === 'back' ? backGarmentBlob : frontGarmentBlob
 
-          // Call Gradio API (IDM-VTON)
+          // Call Gradio API (IDM-VTON custom space)
           const result = await client.predict("/tryon", [
-            { background: handle_file(modelBlob), layers: [], composite: null }, // input_dict
-            handle_file(activeGarmentBlob),                                      // garm_img
+            { background: modelBlob, layers: [], composite: null },              // input_dict
+            activeGarmentBlob,                                                   // garm_img
             garmentDescription.trim(),                                           // garment_des
             true,                                                                // is_checked (use auto-crop)
             true,                                                                // is_checked_crop (use auto-crop & resize)
             30,                                                                  // denoise_steps
             42,                                                                  // seed
+            false,                                                               // auto_post_instagram
+            "",                                                                  // instagram_caption
           ]) as any
 
           let outUrl: string | null = null
