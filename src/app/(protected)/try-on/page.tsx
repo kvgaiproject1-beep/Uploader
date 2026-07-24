@@ -177,7 +177,7 @@ export default function TryOnPage() {
     try {
       const { Client } = await import('@gradio/client')
       const client = await Client.connect(process.env.NEXT_PUBLIC_HF_SPACE_ID!, {
-        hf_token: process.env.NEXT_PUBLIC_HF_TOKEN as any
+        token: process.env.NEXT_PUBLIC_HF_TOKEN as any
       })
 
       // Fetch front garment blob
