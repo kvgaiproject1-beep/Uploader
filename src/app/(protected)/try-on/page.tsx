@@ -70,6 +70,7 @@ export default function TryOnPage() {
 
   // ── Selections ──────────────────────────────────────────
   const [selectedModelId, setSelectedModelId] = useState<'male' | 'female'>('male')
+  const [selectedPoses, setSelectedPoses] = useState<string[]>(['front'])
 
   // Garment Front
   const [garmentFrontTab, setGarmentFrontTab] = useState<'catalog' | 'upload'>('upload')
@@ -174,9 +175,8 @@ export default function TryOnPage() {
     })
 
     try {
-      const spaceId = process.env.NEXT_PUBLIC_HF_SPACE_ID || 'yisol/IDM-VTON'
-      const { Client } = await import('@gradio/client')
-      const client = await Client.connect(spaceId)
+      const { fal } = await import('@fal-ai/client')
+      fal.config({ proxyUrl: '/api/fal/proxy' })
 
       // Fetch front garment blob
       const frontGarmentBlob = await getBlobFromSource(garmentFrontFile, selectedGarmentFrontUrl)
@@ -186,41 +186,38 @@ export default function TryOnPage() {
         ? await getBlobFromSource(garmentBackFile, garmentBackPreview)
         : frontGarmentBlob
 
-      // Process each pose sequentially / in parallel
-      for (const pose of currentModel.poses) {
+      // Upload garments to Fal CDN once to save time
+      const frontGarmentUrl = await fal.storage.upload(frontGarmentBlob)
+      const backGarmentUrl = await fal.storage.upload(backGarmentBlob)
+
+      // Function to generate a single pose
+      const generatePose = async (pose: PoseConfig) => {
         setPoseResults((prev) => ({
           ...prev,
           [pose.id]: { ...prev[pose.id], status: 'processing' },
         }))
 
         try {
+          // Upload base model to Fal
           const modelBlob = await getBlobFromSource(null, pose.modelUrl)
-          const maskBlob = await getBlobFromSource(null, pose.maskUrl)
-          const activeGarmentBlob = pose.id === 'back' ? backGarmentBlob : frontGarmentBlob
+          const modelUrl = await fal.storage.upload(modelBlob)
+          const activeGarmentUrl = pose.id === 'back' ? backGarmentUrl : frontGarmentUrl
 
-          // Call Gradio API
-          const result = await client.predict('/tryon', {
-            dict: {
-              background: modelBlob,
-              layers: [maskBlob],
-              composite: null,
+          // Call Fal API (IDM-VTON)
+          const result = await fal.subscribe("fal-ai/idm-vton", {
+            input: {
+              human_image_url: modelUrl,
+              garment_image_url: activeGarmentUrl,
+              description: garmentDescription.trim(),
             },
-            garm_img: activeGarmentBlob,
-            garment_des: garmentDescription.trim(),
-            is_checked: true,
-            is_checked_crop: false,
-            denoise_steps: 30,
-            seed: 42,
-          }) as { data: Array<{ url?: string; path?: string } | string> }
+          })
 
           let outUrl: string | null = null
-          if (Array.isArray(result.data) && result.data.length > 0) {
-            const first = result.data[0]
-            if (typeof first === 'string') outUrl = first
-            else if (first && typeof first === 'object' && first.url) outUrl = first.url
+          if (result && result.data && (result.data as any).image && (result.data as any).image.url) {
+            outUrl = (result.data as any).image.url
           }
 
-          if (!outUrl) throw new Error('No image returned from AI space')
+          if (!outUrl) throw new Error('No image returned from Fal API')
 
           setPoseResults((prev) => ({
             ...prev,
@@ -234,6 +231,10 @@ export default function TryOnPage() {
           }))
         }
       }
+
+      // Execute all poses in parallel!
+      await Promise.all(currentModel.poses.filter(p => selectedPoses.includes(p.id)).map(generatePose))
+
     } catch (err: any) {
       console.error('Photoshoot generation failure:', err)
     } finally {
@@ -259,42 +260,10 @@ export default function TryOnPage() {
         {/* Left Column: Config Panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           
-          {/* Step 1: Model Selection */}
-          <div className="card" style={{ padding: '1.5rem' }}>
-            <h2 className="font-display" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>1. Select Model Profile</span>
-            </h2>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              {MODEL_PROFILES.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setSelectedModelId(m.id)}
-                  style={{
-                    border: selectedModelId === m.id ? '2px solid var(--brand-400)' : '1px solid var(--b1)',
-                    borderRadius: 'var(--r-md)',
-                    padding: '0.75rem',
-                    background: selectedModelId === m.id ? 'var(--brand-dim)' : 'var(--s-card)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  <div style={{ aspectRatio: '3/4', borderRadius: 'var(--r-sm)', overflow: 'hidden', marginBottom: '0.5rem', background: '#111' }}>
-                    <img src={m.preview} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--t1)' }}>{m.gender} Model</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--t3)' }}>4 Studio Poses</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Step 2: Garment Upload */}
+          {/* Step 1: Garment Upload */}
           <div className="card" style={{ padding: '1.5rem' }}>
             <h2 className="font-display" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1rem' }}>
-              2. Upload Garment
+              1. Upload Garment
             </h2>
 
             {/* Front Garment (Required) */}
@@ -379,7 +348,7 @@ export default function TryOnPage() {
                 Back View (Optional)
               </label>
               <p style={{ fontSize: '0.75rem', color: 'var(--t3)', marginBottom: '0.5rem' }}>
-                If left empty, front garment will be mirrored for the back pose.
+                Required if you want to generate the back view pose.
               </p>
 
               <div
@@ -403,7 +372,11 @@ export default function TryOnPage() {
                     <img src={garmentBackPreview} alt="Back Garment" style={{ maxHeight: 120, objectFit: 'contain', borderRadius: 'var(--r-sm)' }} />
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); clearBackGarment() }}
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        clearBackGarment(); 
+                        setSelectedPoses(prev => prev.filter(p => p !== 'back'));
+                      }}
                       className="btn-danger"
                       style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
                     >
@@ -443,6 +416,67 @@ export default function TryOnPage() {
             </div>
           </div>
 
+          {/* Step 2: Model Selection */}
+          <div className="card" style={{ padding: '1.5rem' }}>
+            <h2 className="font-display" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>2. Select Model Profile</span>
+            </h2>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+              {MODEL_PROFILES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setSelectedModelId(m.id)}
+                  style={{
+                    border: selectedModelId === m.id ? '2px solid var(--brand-400)' : '1px solid var(--b1)',
+                    borderRadius: 'var(--r-md)',
+                    padding: '0.75rem',
+                    background: selectedModelId === m.id ? 'var(--brand-dim)' : 'var(--s-card)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <div style={{ aspectRatio: '3/4', borderRadius: 'var(--r-sm)', overflow: 'hidden', marginBottom: '0.5rem', background: '#111' }}>
+                    <img src={m.preview} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--t1)' }}>{m.gender} Model</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--t3)' }}>4 Studio Poses</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Pose Selection Checkboxes */}
+            <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--t1)', marginBottom: '0.75rem' }}>Select Views to Generate:</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              {currentModel.poses.map(pose => {
+                const isSelected = selectedPoses.includes(pose.id);
+                return (
+                  <label key={pose.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', padding: '0.5rem', borderRadius: 'var(--r-sm)', background: isSelected ? 'var(--brand-dim)' : 'var(--s-overlay)', border: `1px solid ${isSelected ? 'var(--brand-400)' : 'var(--b1)'}`, transition: 'all 0.2s' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={isSelected}
+                      onChange={() => {
+                        if (pose.id === 'back' && !isSelected) {
+                          if (!garmentBackFile && !garmentBackPreview) {
+                            alert("You cannot generate the Back View without uploading a Back Garment image first.");
+                            return;
+                          }
+                        }
+                        setSelectedPoses(prev => 
+                          prev.includes(pose.id) ? prev.filter(p => p !== pose.id) : [...prev, pose.id]
+                        );
+                      }}
+                      style={{ cursor: 'pointer', accentColor: 'var(--brand-500)' }}
+                    />
+                    {pose.label}
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
           {/* Step 3: Generate Button */}
           <button
             type="button"
@@ -465,9 +499,9 @@ export default function TryOnPage() {
               </span>
             </h2>
 
-            {/* 4 Cards Grid */}
+            {/* Cards Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              {currentModel.poses.map((pose) => {
+              {currentModel.poses.filter(p => selectedPoses.includes(p.id)).map((pose) => {
                 const res = poseResults[pose.id]
                 return (
                   <div
