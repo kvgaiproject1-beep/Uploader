@@ -28,7 +28,7 @@ export default function UserMenu({ userEmail }: UserMenuProps) {
           .select('credits')
           .eq('id', user.id)
           .single()
-        if (data) setCredits(data.credits ?? 0)
+        setCredits(data?.credits ?? 0)
       }
     }
     fetchCredits()

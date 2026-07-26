@@ -24,9 +24,7 @@ export default function PlansPage() {
           .eq('id', user.id)
           .single()
         
-        if (data && !error) {
-          setCredits(data.credits ?? 0)
-        }
+        setCredits(data?.credits ?? 0)
       }
     }
     fetchUserAndCredits()
