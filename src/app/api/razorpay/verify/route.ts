@@ -55,10 +55,11 @@ export async function POST(req: Request) {
     const currentCredits = profile?.credits || 0
     
     // Update credits
-    const { error } = await supabase.from('profiles').update({
+    const { error } = await supabase.from('profiles').upsert({
+      id: user.id,
       credits: currentCredits + creditsToAdd,
       plan_type: planId
-    }).eq('id', user.id)
+    })
 
     if (error) throw new Error(error.message)
 
