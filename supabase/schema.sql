@@ -7,7 +7,7 @@
 create table if not exists profiles (
   id            uuid primary key references auth.users(id) on delete cascade,
   display_name  text,
-  credits       integer default 5,
+  credits       integer default 10,
   plan_type     text default 'free',
   created_at    timestamptz default now()
 );

@@ -112,7 +112,7 @@ export default function TryOnPage() {
       if (user) {
         setUser(user)
         const { data } = await supabase.from('profiles').select('credits').eq('id', user.id).single()
-        setCredits(data?.credits ?? 0)
+        setCredits(data?.credits ?? 10)
       }
     }
     fetchUserAndCredits()
@@ -178,6 +178,12 @@ export default function TryOnPage() {
     }
 
     const posesToGenerate = currentModel.poses.filter(p => selectedPoses.includes(p.id))
+    
+    if (posesToGenerate.length === 0) {
+      alert('Please select at least one pose to generate.')
+      return
+    }
+
     const cost = posesToGenerate.length * 10
 
     if (credits !== null && credits < cost) {
