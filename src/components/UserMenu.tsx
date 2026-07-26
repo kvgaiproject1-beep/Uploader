@@ -56,7 +56,27 @@ export default function UserMenu({ userEmail }: UserMenuProps) {
   }, [isOpen])
 
   return (
-    <div className="user-menu-container" ref={menuRef} style={{ position: 'relative' }}>
+    <div className="user-menu-container" ref={menuRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      {credits !== null && (
+        <Link href="/plans" style={{ textDecoration: 'none' }}>
+          <div
+            title="Your Credits"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              background: 'var(--brand-dim)', color: 'var(--brand-400)',
+              padding: '0.375rem 0.875rem', borderRadius: '999px',
+              fontSize: '0.875rem', fontWeight: 700, border: '1px solid var(--brand-500)',
+              transition: 'transform 0.2s ease, background 0.2s', cursor: 'pointer',
+              boxShadow: '0 0 10px rgba(var(--brand-500), 0.2)'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.background = 'var(--s-hover)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'var(--brand-dim)' }}
+          >
+            <span aria-hidden="true">💎</span> {credits}
+          </div>
+        </Link>
+      )}
+
       <button
         onClick={() => setIsOpen(!isOpen)}
         aria-label="User menu"

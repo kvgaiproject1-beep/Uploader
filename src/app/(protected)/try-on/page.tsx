@@ -178,7 +178,7 @@ export default function TryOnPage() {
     }
 
     const posesToGenerate = currentModel.poses.filter(p => selectedPoses.includes(p.id))
-    const cost = posesToGenerate.length
+    const cost = posesToGenerate.length * 10
 
     if (credits !== null && credits < cost) {
       setShowCreditAlarm(true)
@@ -230,6 +230,8 @@ export default function TryOnPage() {
       alert(`[Garment Prep Error] ${error.message || error}`)
       return
     }
+
+    let successfulGenerations = 0;
 
     // Function to generate a single pose
     const generatePose = async (pose: PoseConfig) => {
@@ -309,10 +311,7 @@ export default function TryOnPage() {
                 completed_at: new Date().toISOString()
               })
               
-              // 4. Deduct 1 credit
-              const newCredits = (credits || 0) - 1
-              await supabase.from('profiles').update({ credits: newCredits }).eq('id', user.id)
-              setCredits(newCredits)
+              successfulGenerations++;
 
               // Use the permanent Supabase URL for the UI result
               outUrl = publicUrl
@@ -341,6 +340,18 @@ export default function TryOnPage() {
 
       // Execute all poses in parallel!
       await Promise.all(currentModel.poses.filter(p => selectedPoses.includes(p.id)).map(generatePose))
+
+      if (successfulGenerations > 0 && user) {
+        const totalDeduction = successfulGenerations * 10;
+        const supabase = createClient()
+        // Fetch fresh credits to prevent race conditions
+        const { data } = await supabase.from('profiles').select('credits').eq('id', user.id).single()
+        if (data) {
+           const newCredits = data.credits - totalDeduction;
+           await supabase.from('profiles').update({ credits: newCredits }).eq('id', user.id)
+           setCredits(newCredits)
+        }
+      }
 
     } catch (err: any) {
       console.error('Photoshoot generation failure:', err)
