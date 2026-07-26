@@ -56,7 +56,7 @@ export default function PlansPage() {
 
       // 2. Initialize Razorpay Checkout
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, 
+        key: orderData.key_id, 
         amount: orderData.amount,
         currency: orderData.currency,
         name: "Virtual Try-On",
