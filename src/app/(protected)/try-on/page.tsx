@@ -206,10 +206,11 @@ export default function TryOnPage() {
       let client: any;
       try {
         const { Client } = await import('@gradio/client')
-        const spaceId = process.env.NEXT_PUBLIC_HF_SPACE_ID || 'sharjilsharma/virtual-try-on-test'
+        const spaceId = (process.env.NEXT_PUBLIC_HF_SPACE_ID || 'sharjilsharma/virtual-try-on-test').replace(/['"]/g, '').trim()
+        const hfToken = process.env.NEXT_PUBLIC_HF_TOKEN ? process.env.NEXT_PUBLIC_HF_TOKEN.replace(/['"]/g, '').trim() : undefined
         
         client = await Client.connect(spaceId, {
-          token: process.env.NEXT_PUBLIC_HF_TOKEN as any
+          token: hfToken as any
         })
       } catch (error: any) {
         setIsGenerating(false)
