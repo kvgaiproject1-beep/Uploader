@@ -67,7 +67,8 @@ interface PoseResult {
 
 export default function TryOnPage() {
   const [user, setUser] = useState<User | null>(null)
-
+  const [credits, setCredits] = useState<number | null>(null)
+  const [showCreditAlarm, setShowCreditAlarm] = useState(false)
   // ── Selections ──────────────────────────────────────────
   const [selectedModelId, setSelectedModelId] = useState<'male' | 'female'>('male')
   const [selectedPoses, setSelectedPoses] = useState<string[]>(['front'])
@@ -103,10 +104,18 @@ export default function TryOnPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
-  // Load user
+  // Load user and credits
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    const fetchUserAndCredits = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUser(user)
+        const { data } = await supabase.from('profiles').select('credits').eq('id', user.id).single()
+        if (data) setCredits(data.credits)
+      }
+    }
+    fetchUserAndCredits()
   }, [])
 
   const currentModel = MODEL_PROFILES.find((m) => m.id === selectedModelId)!
@@ -165,6 +174,14 @@ export default function TryOnPage() {
 
     if (!garmentDescription.trim()) {
       alert('Please enter a description for the garment.')
+      return
+    }
+
+    const posesToGenerate = currentModel.poses.filter(p => selectedPoses.includes(p.id))
+    const cost = posesToGenerate.length
+
+    if (credits !== null && credits < cost) {
+      setShowCreditAlarm(true)
       return
     }
 
@@ -292,6 +309,11 @@ export default function TryOnPage() {
                 completed_at: new Date().toISOString()
               })
               
+              // 4. Deduct 1 credit
+              const newCredits = (credits || 0) - 1
+              await supabase.from('profiles').update({ credits: newCredits }).eq('id', user.id)
+              setCredits(newCredits)
+
               // Use the permanent Supabase URL for the UI result
               outUrl = publicUrl
             }
@@ -653,6 +675,27 @@ export default function TryOnPage() {
         </div>
 
       </div>
+
+      {/* Credit Alarm Modal */}
+      {showCreditAlarm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
+          <div className="a-fade-in" style={{ background: 'var(--s-card)', padding: '2.5rem', borderRadius: 'var(--r-lg)', maxWidth: '400px', width: '90%', textAlign: 'center', border: '1px solid var(--b1)' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+            <h2 className="font-display" style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>Out of Credits</h2>
+            <p style={{ color: 'var(--t2)', fontSize: '0.875rem', marginBottom: '2rem' }}>
+              You don't have enough credits to generate these poses. Please recharge your account to continue using the AI.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button onClick={() => setShowCreditAlarm(false)} className="btn-ghost" style={{ padding: '0.75rem 1.5rem' }}>
+                Cancel
+              </button>
+              <a href="/plans" className="btn-primary" style={{ padding: '0.75rem 1.5rem', textDecoration: 'none' }}>
+                View Plans
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

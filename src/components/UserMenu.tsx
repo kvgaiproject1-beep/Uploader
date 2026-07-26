@@ -11,10 +11,28 @@ interface UserMenuProps {
 
 export default function UserMenu({ userEmail }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [credits, setCredits] = useState<number | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
   const initial = userEmail ? userEmail.charAt(0).toUpperCase() : '?'
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      if (!userEmail) return
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('credits')
+          .eq('id', user.id)
+          .single()
+        if (data) setCredits(data.credits)
+      }
+    }
+    fetchCredits()
+  }, [userEmail])
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -106,6 +124,32 @@ export default function UserMenu({ userEmail }: UserMenuProps) {
 
           {/* Links */}
           <div style={{ padding: '0.5rem' }}>
+            <Link
+              href="/plans"
+              onClick={() => setIsOpen(false)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.625rem 0.75rem',
+                fontSize: '0.875rem',
+                color: 'var(--t1)',
+                textDecoration: 'none',
+                borderRadius: 'var(--r-sm)',
+                transition: 'background 0.2s',
+                background: 'var(--brand-dim)',
+                marginBottom: '0.25rem',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--s-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--brand-dim)')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span aria-hidden="true">💎</span> Plans & Credits
+              </div>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--brand-400)' }}>
+                {credits !== null ? credits : '...'}
+              </span>
+            </Link>
             <Link
               href="/try-on"
               onClick={() => setIsOpen(false)}
