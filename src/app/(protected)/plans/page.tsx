@@ -25,7 +25,7 @@ export default function PlansPage() {
           .single()
         
         if (data && !error) {
-          setCredits(data.credits)
+          setCredits(data.credits ?? 0)
         }
       }
     }

@@ -112,7 +112,7 @@ export default function TryOnPage() {
       if (user) {
         setUser(user)
         const { data } = await supabase.from('profiles').select('credits').eq('id', user.id).single()
-        if (data) setCredits(data.credits)
+        if (data) setCredits(data.credits ?? 0)
       }
     }
     fetchUserAndCredits()
