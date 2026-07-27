@@ -692,6 +692,7 @@ export default function TryOnPage() {
                 )
               })}
               </div>
+            </div>
 
               {/* Selected Views Preview (Right Side) */}
               {selectedPoses.length > 0 && (
