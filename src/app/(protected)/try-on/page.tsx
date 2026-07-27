@@ -55,6 +55,16 @@ const LOCAL_GARMENTS = [
   '/catalog/garments/09163_00.jpg',
   '/catalog/garments/09164_00.jpg',
   '/catalog/garments/09166_00.jpg',
+  '/catalog/garments/09176_00.jpg',
+  '/catalog/garments/09236_00.jpg',
+  '/catalog/garments/images (1).jfif',
+  '/catalog/garments/images (2).jfif',
+  '/catalog/garments/images (3).jfif',
+  '/catalog/garments/images (4).jfif',
+  '/catalog/garments/images (5).jfif',
+  '/catalog/garments/images (6).jfif',
+  '/catalog/garments/images (7).jfif',
+  '/catalog/garments/images.jfif',
 ]
 
 interface PoseResult {
