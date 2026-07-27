@@ -7,7 +7,7 @@ import type { User } from '@supabase/supabase-js'
 type Status = 'idle' | 'uploading' | 'queued' | 'processing' | 'done' | 'error'
 
 interface PoseConfig {
-  id: 'front' | 'back' | 'left' | 'right'
+  id: 'front' | 'back' | 'left' | 'right' | 'custom'
   label: string
   modelUrl: string
   maskUrl: string
