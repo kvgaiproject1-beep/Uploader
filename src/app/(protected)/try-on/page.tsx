@@ -456,10 +456,10 @@ export default function TryOnPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1400, margin: '0 auto', padding: 'clamp(1rem, 3vw, 2.5rem)' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(1rem, 3vw, 2.5rem)' }}>
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
-        <h1 className="font-display" style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)', fontWeight: 800 }}>
+        <h1 className="font-display" style={{ fontSize: 'clamp(1.5rem, 2.5vw, 2rem)', fontWeight: 800 }}>
           AI Multi-Pose Photoshoot
         </h1>
         <p style={{ color: 'var(--t2)', fontSize: '1rem', marginTop: '0.25rem' }}>
@@ -468,13 +468,13 @@ export default function TryOnPage() {
       </div>
 
       {/* Main Studio Workspace */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', gap: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '2rem' }}>
 
         {/* Left Column: Config Panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
           {/* Step 1: Garment Upload */}
-          <div className="card" style={{ padding: '1.5rem' }}>
+          <div className="card" style={{ padding: '1rem 1.25rem' }}>
             <h2 className="font-display" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1rem' }}>
               1. Upload Garment
             </h2>
@@ -514,7 +514,7 @@ export default function TryOnPage() {
                   style={{
                     border: `2px dashed ${frontDragging ? 'var(--brand-400)' : 'var(--b1)'}`,
                     borderRadius: 'var(--r-md)',
-                    padding: '1.5rem',
+                    padding: '1rem',
                     textAlign: 'center',
                     cursor: 'pointer',
                     background: 'var(--s-overlay)',
@@ -522,18 +522,18 @@ export default function TryOnPage() {
                 >
                   <input ref={frontInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files?.[0] && loadFrontGarment(e.target.files[0])} />
                   {garmentFrontPreview ? (
-                    <div style={{ maxHeight: 160, display: 'flex', justifyContent: 'center' }}>
-                      <img src={garmentFrontPreview} alt="Front Garment" style={{ maxHeight: 160, objectFit: 'contain', borderRadius: 'var(--r-sm)' }} />
+                    <div style={{ maxHeight: 120, display: 'flex', justifyContent: 'center' }}>
+                      <img src={garmentFrontPreview} alt="Front Garment" style={{ maxHeight: 120, objectFit: 'contain', borderRadius: 'var(--r-sm)' }} />
                     </div>
                   ) : (
                     <div>
-                      <span style={{ fontSize: '1.5rem' }}>👕</span>
-                      <p style={{ fontSize: '0.8125rem', color: 'var(--t2)', marginTop: '0.5rem' }}>Drop front shirt image here or click to browse</p>
+                      <span style={{ fontSize: '1.25rem' }}>👕</span>
+                      <p style={{ fontSize: '0.8125rem', color: 'var(--t2)', marginTop: '0.25rem' }}>Drop front shirt image here or click to browse</p>
                     </div>
                   )}
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', maxHeight: 180, overflowY: 'auto' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', maxHeight: 160, overflowY: 'auto' }}>
                   {LOCAL_GARMENTS.map((g) => (
                     <button
                       key={g}
@@ -572,7 +572,7 @@ export default function TryOnPage() {
                 style={{
                   border: `2px dashed ${backDragging ? 'var(--brand-400)' : 'var(--b1)'}`,
                   borderRadius: 'var(--r-md)',
-                  padding: '1rem',
+                  padding: '0.75rem',
                   textAlign: 'center',
                   cursor: 'pointer',
                   background: 'var(--s-overlay)',
@@ -581,8 +581,8 @@ export default function TryOnPage() {
               >
                 <input ref={backInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files?.[0] && loadBackGarment(e.target.files[0])} />
                 {garmentBackPreview ? (
-                  <div style={{ maxHeight: 120, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem' }}>
-                    <img src={garmentBackPreview} alt="Back Garment" style={{ maxHeight: 120, objectFit: 'contain', borderRadius: 'var(--r-sm)' }} />
+                  <div style={{ maxHeight: 100, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem' }}>
+                    <img src={garmentBackPreview} alt="Back Garment" style={{ maxHeight: 100, objectFit: 'contain', borderRadius: 'var(--r-sm)' }} />
                     <button
                       type="button"
                       onClick={(e) => {
@@ -635,7 +635,11 @@ export default function TryOnPage() {
               <span>2. Select Model Profile</span>
             </h2>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
+              
+              {/* Left Column: Selection */}
+              <div style={{ flex: '1 1 300px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
               {MODEL_PROFILES.map((m) => (
                 <button
                   key={m.id}
@@ -687,24 +691,25 @@ export default function TryOnPage() {
                   </label>
                 )
               })}
-            </div>
-
-            {/* Selected Views Preview */}
-            {selectedPoses.length > 0 && (
-              <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--b1)' }}>
-                <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--t1)', marginBottom: '0.75rem' }}>Selected Views:</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
-                  {currentModel.poses.filter(p => selectedPoses.includes(p.id)).map(pose => (
-                    <div key={pose.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', textAlign: 'center' }}>
-                      <div style={{ aspectRatio: '3/4', borderRadius: 'var(--r-sm)', overflow: 'hidden', border: '1px solid var(--b1)' }}>
-                        <img src={pose.modelUrl} alt={pose.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      </div>
-                      <span style={{ fontSize: '0.6875rem', color: 'var(--t2)' }}>{pose.label}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
-            )}
+
+              {/* Selected Views Preview (Right Side) */}
+              {selectedPoses.length > 0 && (
+                <div style={{ flex: '1 1 200px', background: 'var(--s-overlay)', padding: '1rem', borderRadius: 'var(--r-md)', border: '1px solid var(--b1)', height: 'fit-content' }}>
+                  <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--t1)', marginBottom: '0.75rem' }}>Selected Views:</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))', gap: '0.5rem' }}>
+                    {currentModel.poses.filter(p => selectedPoses.includes(p.id)).map(pose => (
+                      <div key={pose.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', textAlign: 'center' }}>
+                        <div style={{ aspectRatio: '3/4', borderRadius: 'var(--r-sm)', overflow: 'hidden', border: '1px solid var(--b1)' }}>
+                          <img src={pose.modelUrl} alt={pose.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--t2)' }}>{pose.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Step 3: Generate Button */}
@@ -721,7 +726,7 @@ export default function TryOnPage() {
 
         {/* Right Column: 4-Angle Output Grid */}
         <div>
-          <div className="card" style={{ padding: '1.5rem', minHeight: '600px' }}>
+          <div className="card" style={{ padding: '1.5rem' }}>
             <h2 className="font-display" style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Generated Photoshoot Gallery</span>
               <span style={{ fontSize: '0.8125rem', fontWeight: 400, color: 'var(--t3)' }}>
@@ -730,8 +735,21 @@ export default function TryOnPage() {
             </h2>
 
             {/* Cards Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              {currentModel.poses.filter(p => selectedPoses.includes(p.id)).map((pose) => {
+            {(() => {
+              const activePoses = currentModel.poses.filter(p => selectedPoses.includes(p.id) && poseResults[p.id]?.status !== 'idle');
+              
+              if (activePoses.length === 0) {
+                return (
+                  <div style={{ padding: '6rem 2rem', textAlign: 'center', color: 'var(--t3)', border: '2px dashed var(--b1)', borderRadius: 'var(--r-md)' }}>
+                    <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem', filter: 'grayscale(1)', opacity: 0.5 }}>🖼️</span>
+                    <p style={{ fontSize: '1rem' }}>You can see your generated images here!</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                  {activePoses.map((pose) => {
                 const res = poseResults[pose.id]
                 return (
                   <div
@@ -782,9 +800,11 @@ export default function TryOnPage() {
                       </div>
                     )}
                   </div>
-                )
+                );
               })}
             </div>
+            );
+          })()}
           </div>
         </div>
 
