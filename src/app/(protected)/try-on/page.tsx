@@ -63,7 +63,6 @@ const LOCAL_GARMENTS = [
   '/catalog/garments/images (4).jfif',
   '/catalog/garments/images (5).jfif',
   '/catalog/garments/images (6).jfif',
-  '/catalog/garments/images (7).jfif',
   '/catalog/garments/images.jfif',
 ]
 
