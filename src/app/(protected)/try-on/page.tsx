@@ -688,6 +688,23 @@ export default function TryOnPage() {
                 )
               })}
             </div>
+
+            {/* Selected Views Preview */}
+            {selectedPoses.length > 0 && (
+              <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--b1)' }}>
+                <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--t1)', marginBottom: '0.75rem' }}>Selected Views:</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+                  {currentModel.poses.filter(p => selectedPoses.includes(p.id)).map(pose => (
+                    <div key={pose.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', textAlign: 'center' }}>
+                      <div style={{ aspectRatio: '3/4', borderRadius: 'var(--r-sm)', overflow: 'hidden', border: '1px solid var(--b1)' }}>
+                        <img src={pose.modelUrl} alt={pose.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                      <span style={{ fontSize: '0.6875rem', color: 'var(--t2)' }}>{pose.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Step 3: Generate Button */}
@@ -748,7 +765,7 @@ export default function TryOnPage() {
                           ✕ {res.error}
                         </div>
                       ) : (
-                        <img src={pose.modelUrl} alt="Base Standby" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.3 }} />
+                        null
                       )}
                     </div>
 
