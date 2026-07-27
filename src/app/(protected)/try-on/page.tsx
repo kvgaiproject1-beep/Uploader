@@ -66,6 +66,18 @@ const LOCAL_GARMENTS = [
   '/catalog/garments/images.jfif',
 ]
 
+const LOCAL_MODELS = [
+  '/catalog/models/download (1).png',
+  '/catalog/models/download (2).png',
+  '/catalog/models/download (3).png',
+  '/catalog/models/download (4).png',
+  '/catalog/models/download (5).png',
+  '/catalog/models/download (6).png',
+  '/catalog/models/download (7).png',
+  '/catalog/models/download (8).png',
+  '/catalog/models/download.png',
+]
+
 interface PoseResult {
   id: string
   label: string
@@ -79,8 +91,10 @@ export default function TryOnPage() {
   const [credits, setCredits] = useState<number | null>(null)
   const [showCreditAlarm, setShowCreditAlarm] = useState(false)
   // ── Selections ──────────────────────────────────────────
+  const [modelSelectionTab, setModelSelectionTab] = useState<'profiles' | 'catalog'>('profiles')
+  const [selectedCatalogModel, setSelectedCatalogModel] = useState<string | null>(null)
   const [selectedModelId, setSelectedModelId] = useState<'male' | 'female'>('male')
-  const [selectedPoses, setSelectedPoses] = useState<string[]>(['front'])
+  const [selectedPoses, setSelectedPoses] = useState<string[]>([])
 
   // Garment Front
   const [garmentFrontTab, setGarmentFrontTab] = useState<'catalog' | 'upload'>('upload')
@@ -108,6 +122,7 @@ export default function TryOnPage() {
     back: { id: 'back', label: 'Back View', status: 'idle', resultUrl: null, error: null },
     left: { id: 'left', label: 'Left Profile', status: 'idle', resultUrl: null, error: null },
     right: { id: 'right', label: 'Right Profile', status: 'idle', resultUrl: null, error: null },
+    custom: { id: 'custom', label: 'Catalog Model', status: 'idle', resultUrl: null, error: null },
   })
 
   const [isGenerating, setIsGenerating] = useState(false)
@@ -136,6 +151,12 @@ export default function TryOnPage() {
       const savedModel = localStorage.getItem('tryon_selectedModelId')
       if (savedModel === 'male' || savedModel === 'female') setSelectedModelId(savedModel)
 
+      const savedModelTab = localStorage.getItem('tryon_modelSelectionTab')
+      if (savedModelTab === 'profiles' || savedModelTab === 'catalog') setModelSelectionTab(savedModelTab)
+      
+      const savedCatalogModel = localStorage.getItem('tryon_selectedCatalogModel')
+      if (savedCatalogModel) setSelectedCatalogModel(savedCatalogModel)
+
       const savedPoses = localStorage.getItem('tryon_selectedPoses')
       if (savedPoses) setSelectedPoses(JSON.parse(savedPoses))
 
@@ -156,6 +177,12 @@ export default function TryOnPage() {
   useEffect(() => {
     try {
       localStorage.setItem('tryon_garmentDescription', garmentDescription)
+      localStorage.setItem('tryon_modelSelectionTab', modelSelectionTab)
+      if (selectedCatalogModel) {
+        localStorage.setItem('tryon_selectedCatalogModel', selectedCatalogModel)
+      } else {
+        localStorage.removeItem('tryon_selectedCatalogModel')
+      }
       localStorage.setItem('tryon_selectedModelId', selectedModelId)
       localStorage.setItem('tryon_selectedPoses', JSON.stringify(selectedPoses))
       localStorage.setItem('tryon_garmentFrontTab', garmentFrontTab)
@@ -167,7 +194,7 @@ export default function TryOnPage() {
     } catch (e) {
       console.warn("Failed to save state to localStorage", e)
     }
-  }, [garmentDescription, selectedModelId, selectedPoses, garmentFrontTab, selectedGarmentFrontUrl])
+  }, [garmentDescription, modelSelectionTab, selectedCatalogModel, selectedModelId, selectedPoses, garmentFrontTab, selectedGarmentFrontUrl])
 
   const currentModel = MODEL_PROFILES.find((m) => m.id === selectedModelId)!
 
@@ -250,14 +277,14 @@ export default function TryOnPage() {
       return
     }
 
-    const posesToGenerate = currentModel.poses.filter(p => selectedPoses.includes(p.id))
+    const posesToGenerate = modelSelectionTab === 'catalog' ? [] : currentModel.poses.filter(p => selectedPoses.includes(p.id))
     
-    if (posesToGenerate.length === 0) {
+    if (modelSelectionTab === 'profiles' && posesToGenerate.length === 0) {
       alert('Please select at least one pose to generate.')
       return
     }
 
-    const cost = posesToGenerate.length * 10
+    const cost = modelSelectionTab === 'catalog' ? 10 : posesToGenerate.length * 10
 
     if (credits !== null && credits < cost) {
       setShowCreditAlarm(true)
@@ -267,12 +294,13 @@ export default function TryOnPage() {
     setIsGenerating(true)
     abortRef.current = new AbortController()
 
-    // Reset status for all 4 poses
+    // Reset status for all poses
     setPoseResults({
       front: { id: 'front', label: 'Front View', status: 'queued', resultUrl: null, error: null },
       back: { id: 'back', label: 'Back View', status: 'queued', resultUrl: null, error: null },
       left: { id: 'left', label: 'Left Profile', status: 'queued', resultUrl: null, error: null },
       right: { id: 'right', label: 'Right Profile', status: 'queued', resultUrl: null, error: null },
+      custom: { id: 'custom', label: 'Catalog Model', status: 'queued', resultUrl: null, error: null },
     })
 
     try {
@@ -425,7 +453,11 @@ export default function TryOnPage() {
       }
 
       // Execute all poses in parallel!
-      await Promise.all(currentModel.poses.filter(p => selectedPoses.includes(p.id)).map(generatePose))
+      if (modelSelectionTab === 'catalog') {
+        await generatePose({ id: 'custom', label: 'Catalog Model', modelUrl: selectedCatalogModel!, maskUrl: '' })
+      } else {
+        await Promise.all(currentModel.poses.filter(p => selectedPoses.includes(p.id)).map(generatePose))
+      }
 
       if (successfulGenerations > 0 && user) {
         const totalDeduction = successfulGenerations * 10;
@@ -445,9 +477,13 @@ export default function TryOnPage() {
       
       // Update UI with the global error so it's not stuck on "Queued"
       const failedResults = { ...poseResults }
-      currentModel.poses.filter(p => selectedPoses.includes(p.id)).forEach(p => {
-        failedResults[p.id] = { ...failedResults[p.id], status: 'error', error: err.message || 'Initialization failed' }
-      })
+      if (modelSelectionTab === 'catalog') {
+        failedResults['custom'] = { ...failedResults['custom'], status: 'error', error: err.message || 'Initialization failed' }
+      } else {
+        currentModel.poses.filter(p => selectedPoses.includes(p.id)).forEach(p => {
+          failedResults[p.id] = { ...failedResults[p.id], status: 'error', error: err.message || 'Initialization failed' }
+        })
+      }
       setPoseResults(failedResults)
 
     } finally {
@@ -635,12 +671,32 @@ export default function TryOnPage() {
               <span>2. Select Model Profile</span>
             </h2>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
-              
-              {/* Left Column: Selection */}
-              <div style={{ flex: '1 1 300px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-              {MODEL_PROFILES.map((m) => (
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--b1)', paddingBottom: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setModelSelectionTab('profiles')}
+                className={modelSelectionTab === 'profiles' ? 'btn-primary' : 'btn-ghost'}
+                style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+              >
+                Multi-Pose Profiles
+              </button>
+              <button
+                type="button"
+                onClick={() => setModelSelectionTab('catalog')}
+                className={modelSelectionTab === 'catalog' ? 'btn-primary' : 'btn-ghost'}
+                style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+              >
+                Preset Catalog
+              </button>
+            </div>
+
+            {modelSelectionTab === 'profiles' ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
+                
+                {/* Left Column: Selection */}
+                <div style={{ flex: '1 1 300px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                {MODEL_PROFILES.map((m) => (
                 <button
                   key={m.id}
                   type="button"
@@ -711,13 +767,39 @@ export default function TryOnPage() {
                 </div>
               )}
             </div>
+            ) : (
+              <div>
+                <p style={{ fontSize: '0.875rem', color: 'var(--t2)', marginBottom: '1rem' }}>
+                  Multi-view is not supported for preset catalog models. A single front-view image will be generated.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', maxHeight: 300, overflowY: 'auto' }}>
+                  {LOCAL_MODELS.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setSelectedCatalogModel(m)}
+                      style={{
+                        border: selectedCatalogModel === m ? '2px solid var(--brand-400)' : '1px solid var(--b1)',
+                        borderRadius: 'var(--r-sm)',
+                        padding: 0,
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        aspectRatio: '3/4',
+                      }}
+                    >
+                      <img src={m} alt="Catalog Model" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Step 3: Generate Button */}
           <button
             type="button"
             onClick={handleGeneratePhotoshoot}
-            disabled={isGenerating || (!garmentFrontFile && !selectedGarmentFrontUrl) || !garmentDescription.trim()}
+            disabled={isGenerating || (modelSelectionTab === 'profiles' && selectedPoses.length === 0) || (modelSelectionTab === 'catalog' && !selectedCatalogModel) || (!garmentFrontFile && !selectedGarmentFrontUrl) || !garmentDescription.trim()}
             className="btn-primary"
             style={{ width: '100%', padding: '1rem', fontSize: '1.0625rem', fontWeight: 700 }}
           >
@@ -731,13 +813,15 @@ export default function TryOnPage() {
             <h2 className="font-display" style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Generated Photoshoot Gallery</span>
               <span style={{ fontSize: '0.8125rem', fontWeight: 400, color: 'var(--t3)' }}>
-                {currentModel.name}
+                {modelSelectionTab === 'catalog' ? 'Catalog Model' : currentModel.name}
               </span>
             </h2>
 
             {/* Cards Grid */}
             {(() => {
-              const activePoses = currentModel.poses.filter(p => selectedPoses.includes(p.id) && poseResults[p.id]?.status !== 'idle');
+              const activePoses = modelSelectionTab === 'catalog' 
+                ? (poseResults['custom']?.status !== 'idle' ? [{ id: 'custom', label: 'Catalog Model', modelUrl: selectedCatalogModel! }] : []) 
+                : currentModel.poses.filter(p => selectedPoses.includes(p.id) && poseResults[p.id]?.status !== 'idle');
               
               if (activePoses.length === 0) {
                 return (
