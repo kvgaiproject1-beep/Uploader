@@ -283,8 +283,9 @@ export default function TryOnPage() {
         }
 
         let outUrl: string | null = null
-        if (result && Array.isArray(result) && result.length > 0) {
-          outUrl = result[0]?.url || result[0]?.path || (typeof result[0] === 'string' ? result[0] : null)
+        const dataArray = Array.isArray(result) ? result : (result?.data || [])
+        if (dataArray && dataArray.length > 0) {
+          outUrl = dataArray[0]?.url || dataArray[0]?.path || (typeof dataArray[0] === 'string' ? dataArray[0] : null)
         }
 
         if (!outUrl) {
