@@ -32,6 +32,12 @@ export default function UserMenu({ userEmail }: UserMenuProps) {
       }
     }
     fetchCredits()
+
+    const handleCreditsUpdated = () => {
+      fetchCredits()
+    }
+    window.addEventListener('creditsUpdated', handleCreditsUpdated)
+    return () => window.removeEventListener('creditsUpdated', handleCreditsUpdated)
   }, [userEmail])
 
   const handleLogout = async () => {

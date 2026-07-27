@@ -118,6 +118,48 @@ export default function TryOnPage() {
     fetchUserAndCredits()
   }, [])
 
+  // Load saved state from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedDesc = localStorage.getItem('tryon_garmentDescription')
+      if (savedDesc) setGarmentDescription(savedDesc)
+
+      const savedModel = localStorage.getItem('tryon_selectedModelId')
+      if (savedModel === 'male' || savedModel === 'female') setSelectedModelId(savedModel)
+
+      const savedPoses = localStorage.getItem('tryon_selectedPoses')
+      if (savedPoses) setSelectedPoses(JSON.parse(savedPoses))
+
+      const savedFrontTab = localStorage.getItem('tryon_garmentFrontTab')
+      if (savedFrontTab === 'catalog' || savedFrontTab === 'upload') setGarmentFrontTab(savedFrontTab)
+
+      const savedGarmentUrl = localStorage.getItem('tryon_selectedGarmentFrontUrl')
+      if (savedGarmentUrl) {
+        setSelectedGarmentFrontUrl(savedGarmentUrl)
+        setGarmentFrontPreview(savedGarmentUrl)
+      }
+    } catch (e) {
+      console.warn("Failed to load state from localStorage", e)
+    }
+  }, [])
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('tryon_garmentDescription', garmentDescription)
+      localStorage.setItem('tryon_selectedModelId', selectedModelId)
+      localStorage.setItem('tryon_selectedPoses', JSON.stringify(selectedPoses))
+      localStorage.setItem('tryon_garmentFrontTab', garmentFrontTab)
+      if (selectedGarmentFrontUrl) {
+        localStorage.setItem('tryon_selectedGarmentFrontUrl', selectedGarmentFrontUrl)
+      } else {
+        localStorage.removeItem('tryon_selectedGarmentFrontUrl')
+      }
+    } catch (e) {
+      console.warn("Failed to save state to localStorage", e)
+    }
+  }, [garmentDescription, selectedModelId, selectedPoses, garmentFrontTab, selectedGarmentFrontUrl])
+
   const currentModel = MODEL_PROFILES.find((m) => m.id === selectedModelId)!
 
   // Handlers for front garment
@@ -164,6 +206,28 @@ export default function TryOnPage() {
       throw new Error(`[${sourceName} Fetch Error] ${error.message || error}`)
     }
   }
+
+  // ── Download Logic ──────────────────────────────────────
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const fetchUrl = url.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(url)}` : url;
+      const response = await fetch(fetchUrl);
+      if (!response.ok) throw new Error('Failed to fetch image for download');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Fallback
+      window.open(url, '_blank');
+    }
+  };
 
   // ── Generation Logic ────────────────────────────────────
   const handleGeneratePhotoshoot = async () => {
@@ -363,6 +427,7 @@ export default function TryOnPage() {
            const newCredits = data.credits - totalDeduction;
            await supabase.from('profiles').update({ credits: newCredits }).eq('id', user.id)
            setCredits(newCredits)
+           window.dispatchEvent(new Event('creditsUpdated'))
         }
       }
 
@@ -680,15 +745,14 @@ export default function TryOnPage() {
 
                     {res.status === 'done' && res.resultUrl && (
                       <div style={{ padding: '0.5rem', background: 'var(--s-card)' }}>
-                        <a
-                          href={res.resultUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => res.resultUrl && handleDownload(res.resultUrl, `fashionai-${pose.id}.jpg`)}
                           className="btn-ghost"
-                          style={{ width: '100%', display: 'block', textAlign: 'center', padding: '0.375rem', fontSize: '0.75rem' }}
+                          style={{ width: '100%', display: 'block', textAlign: 'center', padding: '0.375rem', fontSize: '0.75rem', border: 'none', cursor: 'pointer' }}
                         >
                           ⬇ Download High-Res
-                        </a>
+                        </button>
                       </div>
                     )}
                   </div>
