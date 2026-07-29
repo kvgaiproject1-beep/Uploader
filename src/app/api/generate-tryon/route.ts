@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const maxDuration = 60; // Set Vercel timeout to 60 seconds (Hobby Max)
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
