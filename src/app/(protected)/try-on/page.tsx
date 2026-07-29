@@ -329,25 +329,6 @@ export default function TryOnPage() {
     })
 
     try {
-      let client: any;
-      try {
-        const { Client } = await import('@gradio/client')
-        
-        let spaceId = process.env.NEXT_PUBLIC_HF_SPACE_ID ? process.env.NEXT_PUBLIC_HF_SPACE_ID.replace(/['"]/g, '').trim() : ''
-        if (!spaceId) {
-          spaceId = 'sharjilsharma/virtual-try-on-test'
-        }
-        
-        const hfToken = process.env.NEXT_PUBLIC_HF_TOKEN ? process.env.NEXT_PUBLIC_HF_TOKEN.replace(/['"]/g, '').trim() : undefined
-        
-        client = await Client.connect(spaceId, {
-          token: hfToken as any
-        })
-      } catch (error: any) {
-        setIsGenerating(false)
-        alert(`[Client Connect Error] ${error.message || error}`)
-        return
-      }
 
     let frontGarmentFile: File;
     let backGarmentFile: File;
@@ -390,45 +371,33 @@ export default function TryOnPage() {
         
         const activeGarmentFile = pose.id === 'back' ? backGarmentFile : frontGarmentFile
 
-        let result: any;
+        let outBlob: Blob;
+        let outUrl: string | null = null;
         try {
-          // Call Gradio API (IDM-VTON custom space)
-          result = await client.predict("/tryon", [
-            { background: modelFile, layers: [], composite: null },              // input_dict
-            activeGarmentFile,                                                   // garm_img
-            garmentDescription.trim(),                                           // garment_des
-            true,                                                                // is_checked (use auto-crop)
-            true,                                                                // is_checked_crop (use auto-crop & resize)
-            30,                                                                  // denoise_steps
-            42,                                                                  // seed
-            false,                                                               // auto_post_instagram
-            "",                                                                  // instagram_caption
-          ])
+          // Call Modal API via our Next.js Server Route
+          const form = new FormData();
+          form.append("human_image", modelFile);
+          form.append("garment_image", activeGarmentFile);
+          form.append("garment_desc", garmentDescription.trim());
+
+          const res = await fetch("/api/generate-tryon", {
+            method: "POST",
+            body: form,
+          });
+          
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`[Modal Predict Error] ${errText}`);
+          }
+          outBlob = await res.blob();
         } catch (error: any) {
-          throw new Error(`[Gradio Predict Error] ${error.message || error}`)
-        }
-
-        let outUrl: string | null = null
-        const dataArray = Array.isArray(result) ? result : (result?.data || [])
-        if (dataArray && dataArray.length > 0) {
-          outUrl = dataArray[0]?.url || dataArray[0]?.path || (typeof dataArray[0] === 'string' ? dataArray[0] : null)
-        }
-
-        if (!outUrl) {
-          console.error("Gradio API raw result:", result)
-          throw new Error(`[Invalid Result Error] No image returned. API responded with: ${JSON.stringify(result)}`)
+          throw new Error(`[Modal Predict Error] ${error.message || error}`);
         }
 
         // Save to Supabase History
         if (user) {
           try {
             const supabase = createClient()
-            
-            // 1. Fetch generated image as Blob
-            const outFetchUrl = outUrl.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(outUrl)}` : outUrl
-            const outRes = await fetch(outFetchUrl)
-            if (!outRes.ok) throw new Error(`Status ${outRes.status} ${outRes.statusText}`)
-            const outBlob = await outRes.blob()
             
             // 2. Upload to Supabase Storage
             const filename = `${user.id}/${Date.now()}-${pose.id}.jpg`
