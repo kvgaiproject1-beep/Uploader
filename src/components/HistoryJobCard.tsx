@@ -55,6 +55,58 @@ export function HistoryJobCard({ job }: { job: TryOnJob }) {
     }
   }
 
+  const handleInstagramAutoPost = async (url: string, filename: string) => {
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        alert("You must be logged in to auto-post to Instagram.")
+        return
+      }
+
+      const { data: creds, error } = await supabase
+        .from('instagram_credentials')
+        .select('ig_username, ig_password')
+        .eq('user_id', user.id)
+        .single()
+
+      if (error || !creds) {
+        if (confirm("You haven't connected your Instagram account yet. Go to Settings to connect it?")) {
+          window.location.href = '/settings'
+        }
+        return
+      }
+
+      const btn = document.getElementById(`ig-btn-hist-${filename}`)
+      if (btn) btn.innerText = "Posting..."
+
+      const res = await fetch('/api/instagram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: creds.ig_username,
+          password: creds.ig_password,
+          image_url: url,
+          caption: "My AI Fashion Try-On 👕✨ #aifashion #virtualtryon"
+        })
+      })
+
+      const data = await res.json()
+      
+      if (!res.ok) throw new Error(data.error || "Failed to post")
+      
+      if (btn) btn.innerText = "Posted ✓"
+      alert("Successfully posted to Instagram! URL: " + data.post_url)
+      
+    } catch (error: any) {
+      console.error('Share failed:', error);
+      alert('Could not auto-post to Instagram: ' + error.message);
+      const btn = document.getElementById(`ig-btn-hist-${filename}`)
+      if (btn) btn.innerText = "Instagram"
+    }
+  };
+
   return (
     <article
       role="listitem"
@@ -129,6 +181,21 @@ export function HistoryJobCard({ job }: { job: TryOnJob }) {
             >
               <span aria-hidden="true">⬇</span> Download
             </a>
+          )}
+          {job.output_image_url && (
+            <button
+              id={`ig-btn-hist-${job.id}`}
+              onClick={() => job.output_image_url && handleInstagramAutoPost(job.output_image_url, job.id)}
+              className="btn-ghost"
+              style={{
+                flex: 1,
+                padding: '0.5rem', fontSize: '0.8125rem', justifyContent: 'center', textAlign: 'center',
+                color: '#e6683c'
+              }}
+              aria-label="Post to Instagram"
+            >
+              <span aria-hidden="true">📸</span> Instagram
+            </button>
           )}
           <button
             onClick={handleDelete}
