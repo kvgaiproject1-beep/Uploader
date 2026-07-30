@@ -36,7 +36,7 @@ export default async function HistoryPage() {
           <p style={{ color: 'var(--t2)', fontSize: '0.9375rem' }}>
             {typedJobs.length === 0
               ? 'No try-ons yet. Generate your first one!'
-              : `${typedJobs.length} generation${typedJobs.length !== 1 ? 's' : ''}`}
+              : `${typedJobs.length} generation${typedJobs.length !== 1 ? 's' : ''} · Tap 📸 to share on Instagram`}
           </p>
         </div>
         <Link
