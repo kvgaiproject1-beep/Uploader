@@ -374,19 +374,16 @@ export default function TryOnPage() {
         let outBlob: Blob;
         let outUrl: string | null = null;
         try {
-          // Call Modal API directly from the browser to bypass Vercel's 60s timeout limit
           const form = new FormData();
-          form.append("human_image", modelFile);
-          form.append("garment_image", activeGarmentFile);
-          form.append("garment_desc", garmentDescription.trim());
+          form.append('human_image', modelFile);
+          form.append('garment_image', activeGarmentFile);
+          form.append('garment_desc', garmentDescription.trim());
 
-          const targetUrl = process.env.NEXT_PUBLIC_MODAL_API_URL || "https://lakshaymahajan3605--idm-vton-tryonservice-tryon.modal.run";
-
-          const res = await fetch(targetUrl, {
-            method: "POST",
+          const res = await fetch('/api/generate-tryon', {
+            method: 'POST',
             body: form,
           });
-          
+
           if (!res.ok) {
             const errText = await res.text();
             throw new Error(`[Modal Predict Error] ${errText}`);
