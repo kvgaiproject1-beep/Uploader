@@ -265,28 +265,57 @@ export default function TryOnPage() {
     }
   };
 
-  const handleInstagramShare = async (url: string, filename: string) => {
+  const handleInstagramAutoPost = async (url: string, filename: string) => {
     try {
-      const fetchUrl = url.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(url)}` : url;
-      const response = await fetch(fetchUrl);
-      if (!response.ok) throw new Error('Failed to fetch image for sharing');
-      const blob = await response.blob();
-      const file = new File([blob], filename, { type: blob.type });
-
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: 'My AI Fashion Try-On',
-          text: 'Check out my virtual try-on! 👕✨ #aifashion #virtualtryon',
-          files: [file],
-        });
-      } else {
-        // Fallback: Download and prompt
-        handleDownload(url, filename);
-        alert('Your device does not support direct Instagram sharing from the browser. The image has been downloaded — you can now open the Instagram app and post it!');
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        alert("You must be logged in to auto-post to Instagram.")
+        return
       }
-    } catch (error) {
+
+      // 1. Check if user has credentials
+      const { data: creds, error } = await supabase
+        .from('instagram_credentials')
+        .select('ig_username, ig_password')
+        .eq('user_id', user.id)
+        .single()
+
+      if (error || !creds) {
+        if (confirm("You haven't connected your Instagram account yet. Go to Settings to connect it?")) {
+          window.location.href = '/settings'
+        }
+        return
+      }
+
+      // 2. Trigger backend post
+      const btn = document.getElementById(`ig-btn-${filename}`)
+      if (btn) btn.innerText = "Posting..."
+
+      const res = await fetch('/api/instagram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: creds.ig_username,
+          password: creds.ig_password,
+          image_url: url,
+          caption: "My AI Fashion Try-On 👕✨ #aifashion #virtualtryon"
+        })
+      })
+
+      const data = await res.json()
+      
+      if (!res.ok) throw new Error(data.error || "Failed to post")
+      
+      if (btn) btn.innerText = "Posted ✓"
+      alert("Successfully posted to Instagram! URL: " + data.post_url)
+      
+    } catch (error: any) {
       console.error('Share failed:', error);
-      alert('Could not share image. Please download it instead.');
+      alert('Could not auto-post to Instagram: ' + error.message);
+      const btn = document.getElementById(`ig-btn-${filename}`)
+      if (btn) btn.innerText = "Share to Instagram"
     }
   };
 
@@ -868,12 +897,13 @@ export default function TryOnPage() {
                     {res.status === 'done' && res.resultUrl && (
                       <div style={{ padding: '0.5rem', background: 'var(--s-card)', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                         <button
+                          id={`ig-btn-fashionai-${pose.id}.jpg`}
                           type="button"
-                          onClick={() => res.resultUrl && handleInstagramShare(res.resultUrl, `fashionai-${pose.id}.jpg`)}
+                          onClick={() => res.resultUrl && handleInstagramAutoPost(res.resultUrl, `fashionai-${pose.id}.jpg`)}
                           style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, border: 'none', cursor: 'pointer', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', color: 'white', borderRadius: 'var(--r-sm)' }}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-                          Share to Instagram
+                          Auto-Post to Instagram
                         </button>
                         <button
                           type="button"

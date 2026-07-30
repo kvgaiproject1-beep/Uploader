@@ -214,6 +214,25 @@ export default function UserMenu({ userEmail }: UserMenuProps) {
             >
               <span aria-hidden="true">🕘</span> History
             </Link>
+            <Link
+              href="/settings"
+              onClick={() => setIsOpen(false)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.625rem 0.75rem',
+                fontSize: '0.875rem',
+                color: 'var(--t1)',
+                textDecoration: 'none',
+                borderRadius: 'var(--r-sm)',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--s-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <span aria-hidden="true">⚙️</span> Settings
+            </Link>
           </div>
 
           {/* Logout Footer */}

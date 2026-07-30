@@ -63,3 +63,19 @@ create policy "garments are public read"
 -- ── Enable Realtime on tryon_jobs ────────────────────────────
 -- (so the browser gets live status updates without polling)
 alter publication supabase_realtime add table tryon_jobs;
+
+-- ── Instagram Credentials ────────────────────────────────────
+create table if not exists instagram_credentials (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid references auth.users(id) on delete cascade unique,
+  ig_username   text not null,
+  ig_password   text not null,
+  created_at    timestamptz default now(),
+  updated_at    timestamptz default now()
+);
+
+alter table instagram_credentials enable row level security;
+
+create policy "users manage own instagram credentials"
+  on instagram_credentials for all
+  using (auth.uid() = user_id);
