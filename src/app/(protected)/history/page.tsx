@@ -3,6 +3,9 @@ import type { TryOnJob } from '@/lib/types'
 import Link from 'next/link'
 import { HistoryJobCard } from '@/components/HistoryJobCard'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function HistoryPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -36,7 +39,7 @@ export default async function HistoryPage() {
           <p style={{ color: 'var(--t2)', fontSize: '0.9375rem' }}>
             {typedJobs.length === 0
               ? 'No try-ons yet. Generate your first one!'
-              : `${typedJobs.length} generation${typedJobs.length !== 1 ? 's' : ''} · Tap 📸 to share on Instagram`}
+              : `${typedJobs.length} generation${typedJobs.length !== 1 ? 's' : ''} · Click 📸 on any card to share on Instagram`}
           </p>
         </div>
         <Link
@@ -94,4 +97,3 @@ export default async function HistoryPage() {
     </div>
   )
 }
-
