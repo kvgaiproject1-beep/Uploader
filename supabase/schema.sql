@@ -65,14 +65,18 @@ create policy "garments are public read"
 -- (so the browser gets live status updates without polling)
 alter publication supabase_realtime add table tryon_jobs;
 
--- ── Instagram Credentials ────────────────────────────────────
+-- ── Instagram Credentials (OAuth tokens via Meta Graph API) ─────────────
 create table if not exists instagram_credentials (
-  id            uuid primary key default gen_random_uuid(),
-  user_id       uuid references auth.users(id) on delete cascade unique,
-  ig_username   text not null,
-  ig_password   text not null,
-  created_at    timestamptz default now(),
-  updated_at    timestamptz default now()
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid references auth.users(id) on delete cascade unique,
+  ig_username     text,
+  ig_user_id      text,                   -- Instagram Business Account ID
+  ig_password     text,                   -- legacy (unused with OAuth)
+  access_token    text,                   -- long-lived token (60 days, auto-refreshes)
+  token_expiry    timestamptz,            -- when the current token expires
+  ig_profile_pic  text,                   -- profile picture URL
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now()
 );
 
 alter table instagram_credentials enable row level security;
@@ -80,3 +84,9 @@ alter table instagram_credentials enable row level security;
 create policy "users manage own instagram credentials"
   on instagram_credentials for all
   using (auth.uid() = user_id);
+
+-- Migration: add OAuth columns to existing tables (safe to run on existing DB)
+-- alter table instagram_credentials add column if not exists ig_user_id text;
+-- alter table instagram_credentials add column if not exists access_token text;
+-- alter table instagram_credentials add column if not exists token_expiry timestamptz;
+-- alter table instagram_credentials add column if not exists ig_profile_pic text;
