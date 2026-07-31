@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
-import { InstagramShareModal } from '@/components/InstagramShareModal'
+import { useRouter } from 'next/navigation'
 
 type Status = 'idle' | 'uploading' | 'queued' | 'processing' | 'done' | 'error'
 
@@ -88,6 +88,7 @@ interface PoseResult {
 }
 
 export default function TryOnPage() {
+  const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [credits, setCredits] = useState<number | null>(null)
   const [showCreditAlarm, setShowCreditAlarm] = useState(false)
@@ -267,9 +268,9 @@ export default function TryOnPage() {
     }
   };
 
-  // Instagram share: open the in-site modal
+  // Instagram share: route to Instagram oauth page
   const handleInstagramShare = (url: string) => {
-    setIgShareUrl(url)
+    router.push('/instagram')
   };
 
   // ── Generation Logic ────────────────────────────────────
@@ -468,12 +469,6 @@ export default function TryOnPage() {
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(1rem, 3vw, 2.5rem)' }}>
-      {igShareUrl && (
-        <InstagramShareModal
-          imageUrl={igShareUrl}
-          onClose={() => setIgShareUrl(null)}
-        />
-      )}
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
         <h1 className="font-display" style={{ fontSize: 'clamp(1.5rem, 2.5vw, 2rem)', fontWeight: 800 }}>
