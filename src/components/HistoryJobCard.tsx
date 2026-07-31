@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { TryOnJob, TryOnJobStatus } from '@/lib/types'
 import { useRouter } from 'next/navigation'
-import { InstagramShareModal } from './InstagramShareModal'
 
 function StatusBadge({ status }: { status: TryOnJobStatus }) {
   const labels: Record<TryOnJobStatus, string> = {
@@ -25,7 +24,6 @@ function formatDate(iso: string) {
 
 export function HistoryJobCard({ job }: { job: TryOnJob }) {
   const [isDeleting, setIsDeleting] = useState(false)
-  const [shareUrl, setShareUrl] = useState<string | null>(null)
   const router = useRouter()
 
   const handleDelete = async () => {
@@ -55,13 +53,6 @@ export function HistoryJobCard({ job }: { job: TryOnJob }) {
 
   return (
     <>
-      {shareUrl && (
-        <InstagramShareModal
-          imageUrl={shareUrl}
-          onClose={() => setShareUrl(null)}
-        />
-      )}
-
       <article
         role="listitem"
         className="card feature-card-hover"
@@ -138,7 +129,7 @@ export function HistoryJobCard({ job }: { job: TryOnJob }) {
             )}
             {job.output_image_url && (
               <button
-                onClick={() => setShareUrl(job.output_image_url!)}
+                onClick={() => router.push('/instagram')}
                 style={{
                   flex: 1,
                   padding: '0.5rem', fontSize: '0.8125rem', justifyContent: 'center', textAlign: 'center',
