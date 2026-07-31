@@ -5,11 +5,12 @@
 
 -- ── Profiles (extends built-in auth.users) ──────────────────
 create table if not exists profiles (
-  id            uuid primary key references auth.users(id) on delete cascade,
-  display_name  text,
-  credits       integer default 10,
-  plan_type     text default 'free',
-  created_at    timestamptz default now()
+  id              uuid primary key references auth.users(id) on delete cascade,
+  display_name    text,
+  credits         integer default 10,
+  plan_type       text default 'free',
+  instagram_handle text,
+  created_at      timestamptz default now()
 );
 
 -- ── Garment catalog ─────────────────────────────────────────
