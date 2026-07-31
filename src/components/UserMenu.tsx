@@ -15,19 +15,23 @@ function InstagramConnectModal({
   onClose,
 }: {
   current: string
-  onSave: (handle: string) => void
+  onSave: (handle: string, password?: string) => void
   onClose: () => void
 }) {
   const [handle, setHandle] = useState(current.replace('@', ''))
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
     const cleaned = handle.trim().replace(/^@/, '')
     if (!cleaned) return
     setSaving(true)
-    await onSave(cleaned)
+    await onSave(cleaned, password.trim() || undefined)
     setSaving(false)
   }
+
+  const IG_GRADIENT = 'linear-gradient(135deg, #f09433 0%, #dc2743 50%, #bc1888 100%)'
 
   return (
     <div
@@ -43,18 +47,18 @@ function InstagramConnectModal({
         className="a-fade-in"
         style={{
           background: 'var(--s-card)', border: '1px solid var(--b1)',
-          borderRadius: 'var(--r-lg)', padding: '1.5rem', width: '100%', maxWidth: '360px',
+          borderRadius: 'var(--r-lg)', padding: '1.5rem', width: '100%', maxWidth: '380px',
           boxShadow: '0 25px 50px -12px rgba(0,0,0,0.6)',
         }}
       >
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
           <div style={{
-            width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-            background: 'linear-gradient(135deg, #f09433 0%, #dc2743 50%, #bc1888 100%)',
+            width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+            background: IG_GRADIENT,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
               <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
               <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
@@ -62,34 +66,75 @@ function InstagramConnectModal({
           </div>
           <div>
             <p style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--t1)' }}>Connect Instagram</p>
-            <p style={{ fontSize: '0.75rem', color: 'var(--t3)' }}>Save your handle to share try-ons faster</p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--t3)' }}>Enable one-click posting from the site</p>
           </div>
         </div>
 
-        {/* Input */}
-        <div style={{ position: 'relative', marginBottom: '1rem' }}>
-          <span style={{
-            position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)',
-            color: 'var(--t3)', fontSize: '0.9375rem', pointerEvents: 'none',
-          }}>@</span>
-          <input
-            type="text"
-            value={handle}
-            onChange={(e) => setHandle(e.target.value.replace(/^@/, ''))}
-            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-            placeholder="your_username"
-            autoFocus
-            style={{
-              width: '100%', padding: '0.75rem 0.875rem 0.75rem 1.75rem',
-              background: 'var(--s2)', border: '1px solid var(--b1)',
-              borderRadius: 'var(--r-sm)', color: 'var(--t1)', fontSize: '0.9375rem',
-              outline: 'none', boxSizing: 'border-box',
-              transition: 'border-color 0.2s',
-            }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--brand-500)')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--b1)')}
-          />
+        {/* Username input */}
+        <div style={{ marginBottom: '0.875rem' }}>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--t3)', display: 'block', marginBottom: '0.375rem' }}>USERNAME</label>
+          <div style={{ position: 'relative' }}>
+            <span style={{
+              position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)',
+              color: 'var(--t3)', fontSize: '0.9375rem', pointerEvents: 'none',
+            }}>@</span>
+            <input
+              type="text"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value.replace(/^@/, ''))}
+              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+              placeholder="your_username"
+              autoFocus
+              style={{
+                width: '100%', padding: '0.75rem 0.875rem 0.75rem 1.75rem',
+                background: 'var(--s2)', border: '1px solid var(--b1)',
+                borderRadius: 'var(--r-sm)', color: 'var(--t1)', fontSize: '0.9375rem',
+                outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s',
+              }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--brand-500)')}
+              onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--b1)')}
+            />
+          </div>
         </div>
+
+        {/* Password input (optional) */}
+        <div style={{ marginBottom: '0.5rem' }}>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--t3)', display: 'block', marginBottom: '0.375rem' }}>
+            PASSWORD <span style={{ fontWeight: 400, color: 'var(--t3)' }}>(optional — for desktop auto-posting)</span>
+          </label>
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Instagram password"
+              style={{
+                width: '100%', padding: '0.75rem 2.5rem 0.75rem 0.875rem',
+                background: 'var(--s2)', border: '1px solid var(--b1)',
+                borderRadius: 'var(--r-sm)', color: 'var(--t1)', fontSize: '0.9375rem',
+                outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s',
+              }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--brand-500)')}
+              onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--b1)')}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--t3)', fontSize: '0.875rem', padding: 0,
+              }}
+            >
+              {showPassword ? '🙈' : '👁'}
+            </button>
+          </div>
+        </div>
+
+        <p style={{ fontSize: '0.7rem', color: 'var(--t3)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+          🔒 Password is encrypted with AES-256 and never stored in plain text.
+          Only required if you want auto-posting on desktop. Mobile users can post via the share sheet without a password.
+        </p>
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: '0.625rem' }}>
@@ -108,13 +153,13 @@ function InstagramConnectModal({
             disabled={saving || !handle.trim()}
             style={{
               flex: 2, padding: '0.625rem', borderRadius: 'var(--r-sm)',
-              background: 'linear-gradient(135deg, #f09433 0%, #dc2743 50%, #bc1888 100%)',
+              background: IG_GRADIENT,
               border: 'none', color: 'white', fontSize: '0.875rem',
               fontWeight: 600, cursor: saving ? 'wait' : 'pointer',
               opacity: saving || !handle.trim() ? 0.6 : 1,
             }}
           >
-            {saving ? 'Saving…' : 'Save Handle'}
+            {saving ? 'Connecting…' : 'Connect Instagram'}
           </button>
         </div>
       </div>
@@ -162,14 +207,30 @@ export default function UserMenu({ userEmail }: UserMenuProps) {
     router.refresh()
   }
 
-  const handleSaveInstagram = async (handle: string) => {
+  const handleSaveInstagram = async (handle: string, password?: string) => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+
+    // Always save handle to profiles
     await supabase
       .from('profiles')
       .update({ instagram_handle: handle })
       .eq('id', user.id)
+
+    // If password provided, save encrypted credentials via API
+    if (password) {
+      try {
+        await fetch('/api/instagram/save-credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: handle, password }),
+        })
+      } catch {
+        // Non-fatal — handle still saved
+      }
+    }
+
     setInstagramHandle(handle)
     setShowInstagramModal(false)
   }
