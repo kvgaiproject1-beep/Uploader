@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -33,7 +34,9 @@ function InstagramConnectModal({
 
   const IG_GRADIENT = 'linear-gradient(135deg, #f09433 0%, #dc2743 50%, #bc1888 100%)'
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 9999,
@@ -163,7 +166,8 @@ function InstagramConnectModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
