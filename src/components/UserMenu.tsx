@@ -46,7 +46,7 @@ function InstagramConnectModal({
       <div
         className="a-fade-in"
         style={{
-          background: 'var(--s-card)', border: '1px solid var(--b1)',
+          background: '#0f172a', border: '1px solid var(--b1)',
           borderRadius: 'var(--r-lg)', padding: '1.5rem', width: '100%', maxWidth: '380px',
           boxShadow: '0 25px 50px -12px rgba(0,0,0,0.6)',
         }}
