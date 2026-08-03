@@ -12,11 +12,11 @@ export async function POST(request: Request) {
     }
 
     // Extract files from formData
-    const personImageFile = formData.get('person_image') as Blob | null;
+    const personImageFile = formData.get('human_image') as Blob | null;
     const garmentImageFile = formData.get('garment_image') as Blob | null;
 
     if (!personImageFile || !garmentImageFile) {
-      return new NextResponse('Missing person_image or garment_image', { status: 400 });
+      return new NextResponse('Missing human_image or garment_image', { status: 400 });
     }
 
     // Convert to Base64
