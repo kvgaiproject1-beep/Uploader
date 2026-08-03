@@ -313,11 +313,10 @@ export default function UserMenu({ userEmail }: UserMenuProps) {
               top: 'calc(100% + 8px)',
               right: 0,
               width: '240px',
-              background: 'rgba(15, 15, 20, 0.9)',
+              background: '#0f172a',
               border: '1px solid var(--b1)',
               borderRadius: 'var(--r-md)',
               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
-              backdropFilter: 'blur(16px)',
               zIndex: 100,
               overflow: 'hidden',
             }}
