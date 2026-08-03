@@ -28,3 +28,14 @@ export interface TryOnJob {
   created_at: string
   completed_at: string | null
 }
+
+export interface InstagramConnection {
+  id: string
+  user_id: string
+  ig_user_id: string
+  ig_username: string | null
+  access_token: string
+  token_expires_at: string
+  created_at: string
+  updated_at: string
+}

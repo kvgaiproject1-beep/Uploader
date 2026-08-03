@@ -4,11 +4,10 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-interface Creds {
+interface Connection {
   ig_username: string | null
   ig_user_id: string | null
-  ig_profile_pic: string | null
-  token_expiry: string | null
+  token_expires_at: string | null
 }
 
 const IG_GRADIENT = 'linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)'
@@ -40,10 +39,10 @@ function daysUntil(dateStr: string | null): number | null {
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)))
 }
 
-export default function InstagramPageClient({ initialCreds }: { initialCreds: Creds | null }) {
+export default function InstagramPageClient({ initialConnection }: { initialConnection: Connection | null }) {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [creds, setCreds] = useState<Creds | null>(initialCreds)
+  const [connection, setConnection] = useState<Connection | null>(initialConnection)
   const [disconnecting, setDisconnecting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshMsg, setRefreshMsg] = useState('')
@@ -56,19 +55,19 @@ export default function InstagramPageClient({ initialCreds }: { initialCreds: Cr
 
     if (connected === 'true') {
       setBanner({ type: 'success', msg: '🎉 Instagram connected successfully!' })
-      // Refresh creds from DB
-      const fetchCreds = async () => {
+      // Refresh connection data from DB
+      const fetchConnection = async () => {
         const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
         const { data } = await supabase
-          .from('instagram_credentials')
-          .select('ig_username, ig_user_id, ig_profile_pic, token_expiry')
+          .from('instagram_connections')
+          .select('ig_username, ig_user_id, token_expires_at')
           .eq('user_id', user.id)
           .single()
-        setCreds(data ?? null)
+        setConnection(data ?? null)
       }
-      fetchCreds()
+      fetchConnection()
       // Remove query params from URL
       router.replace('/instagram')
     } else if (error) {
@@ -87,9 +86,9 @@ export default function InstagramPageClient({ initialCreds }: { initialCreds: Cr
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      await supabase.from('instagram_credentials').delete().eq('user_id', user.id)
+      await supabase.from('instagram_connections').delete().eq('user_id', user.id)
     }
-    setCreds(null)
+    setConnection(null)
     setDisconnecting(false)
     setBanner({ type: 'success', msg: 'Instagram account disconnected.' })
   }
@@ -98,20 +97,21 @@ export default function InstagramPageClient({ initialCreds }: { initialCreds: Cr
     setRefreshing(true)
     setRefreshMsg('')
     try {
-      const res = await fetch('/api/instagram/refresh', { method: 'POST' })
+      const res = await fetch('/api/instagram/refresh-manual', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setRefreshMsg('✓ Token refreshed! Valid for another 60 days.')
-      if (data.token_expiry) {
-        setCreds(prev => prev ? { ...prev, token_expiry: data.token_expiry } : prev)
+      if (data.token_expires_at) {
+        setConnection(prev => prev ? { ...prev, token_expires_at: data.token_expires_at } : prev)
       }
-    } catch (err: any) {
-      setRefreshMsg(`⚠ ${err.message}`)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      setRefreshMsg(`⚠ ${message}`)
     }
     setRefreshing(false)
   }
 
-  const daysLeft = daysUntil(creds?.token_expiry ?? null)
+  const daysLeft = daysUntil(connection?.token_expires_at ?? null)
 
   return (
     <div style={{
@@ -155,7 +155,7 @@ export default function InstagramPageClient({ initialCreds }: { initialCreds: Cr
       )}
 
       {/* ── NOT CONNECTED ── */}
-      {!creds?.ig_user_id && (
+      {!connection?.ig_user_id && (
         <div style={{
           background: 'var(--s-card)', border: '1px solid var(--b1)',
           borderRadius: 'var(--r-lg)', overflow: 'hidden',
@@ -217,7 +217,7 @@ export default function InstagramPageClient({ initialCreds }: { initialCreds: Cr
             </button>
 
             <p style={{ fontSize: '0.75rem', color: 'var(--t3)', textAlign: 'center', marginTop: '0.875rem', lineHeight: 1.6 }}>
-              Requires a Business or Creator Instagram account connected to a Facebook Page.{' '}
+              Requires a Business or Creator Instagram account.{' '}
               <a href="https://help.instagram.com/502981923235522" target="_blank" rel="noopener noreferrer"
                 style={{ color: 'var(--brand-400)', textDecoration: 'none' }}>
                 How to switch to Business?
@@ -228,7 +228,7 @@ export default function InstagramPageClient({ initialCreds }: { initialCreds: Cr
       )}
 
       {/* ── CONNECTED ── */}
-      {creds?.ig_user_id && (
+      {connection?.ig_user_id && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Profile card */}
           <div style={{
@@ -236,22 +236,13 @@ export default function InstagramPageClient({ initialCreds }: { initialCreds: Cr
             borderRadius: 'var(--r-lg)', padding: '1.5rem',
             display: 'flex', gap: '1rem', alignItems: 'center',
           }}>
-            {/* Profile pic */}
-            {creds.ig_profile_pic ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={creds.ig_profile_pic}
-                alt="Instagram profile"
-                style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `2.5px solid transparent`, backgroundImage: IG_GRADIENT }}
-              />
-            ) : (
-              <div style={{
-                width: 64, height: 64, borderRadius: '50%', background: IG_GRADIENT,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
-                <IgIcon size={28} white />
-              </div>
-            )}
+            {/* Profile icon */}
+            <div style={{
+              width: 64, height: 64, borderRadius: '50%', background: IG_GRADIENT,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <IgIcon size={28} white />
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
                 <span style={{
@@ -261,7 +252,7 @@ export default function InstagramPageClient({ initialCreds }: { initialCreds: Cr
                 <span style={{ fontSize: '0.8rem', color: '#4ade80', fontWeight: 600 }}>Connected</span>
               </div>
               <p style={{ fontWeight: 700, fontSize: '1.0625rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                @{creds.ig_username ?? 'Unknown'}
+                @{connection.ig_username ?? 'Unknown'}
               </p>
               <p style={{ fontSize: '0.8125rem', color: 'var(--t3)', margin: '0.125rem 0 0' }}>
                 Instagram Business Account
@@ -310,7 +301,7 @@ export default function InstagramPageClient({ initialCreds }: { initialCreds: Cr
               </p>
             )}
             <p style={{ fontSize: '0.75rem', color: 'var(--t3)', margin: '0.625rem 0 0', lineHeight: 1.6 }}>
-              Token auto-renews whenever you post. You can also renew manually here. Once renewed, it&apos;s valid for another 60 days.
+              Token auto-renews daily via cron. You can also renew manually here. Once renewed, it&apos;s valid for another 60 days.
             </p>
           </div>
 
