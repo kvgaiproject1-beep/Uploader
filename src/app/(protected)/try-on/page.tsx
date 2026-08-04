@@ -111,6 +111,8 @@ export default function TryOnPage() {
 
   // Garment Description (Required)
   const [garmentDescription, setGarmentDescription] = useState('')
+  // Cloth type for IDM-VTON model
+  const [clothType, setClothType] = useState<'upper' | 'lower' | 'overall'>('upper')
 
   // Drag states
   const [frontDragging, setFrontDragging] = useState(false)
@@ -361,6 +363,7 @@ export default function TryOnPage() {
           form.append('human_image', modelFile);
           form.append('garment_image', activeGarmentFile);
           form.append('garment_desc', garmentDescription.trim());
+          form.append('cloth_type', clothType);
 
           const res = await fetch('/api/generate-tryon', {
             method: 'POST',
@@ -637,6 +640,29 @@ export default function TryOnPage() {
               />
               <p style={{ fontSize: '0.75rem', color: 'var(--t3)', marginTop: '0.375rem' }}>
                 Describing the pattern, color, and fit provides text conditioning that stops the AI from hallucinating.
+              </p>
+            </div>
+
+            {/* Cloth Type Selector (IDM-VTON) */}
+            <div style={{ marginTop: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--t1)', marginBottom: '0.5rem' }}>
+                Garment Type
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {(['upper', 'lower', 'overall'] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setClothType(type)}
+                    className={clothType === type ? 'btn-primary' : 'btn-ghost'}
+                    style={{ padding: '0.375rem 0.875rem', fontSize: '0.75rem', textTransform: 'capitalize', flex: 1 }}
+                  >
+                    {type === 'upper' ? '👕 Upper' : type === 'lower' ? '👖 Lower' : '👔 Full Outfit'}
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--t3)', marginTop: '0.375rem' }}>
+                Tells IDM-VTON which body region to replace.
               </p>
             </div>
           </div>

@@ -19,6 +19,10 @@ export async function POST(request: Request) {
       return new NextResponse('Missing human_image or garment_image', { status: 400 });
     }
 
+    // Extract optional IDM-VTON fields
+    const garmentDesc = (formData.get('garment_desc') as string | null) ?? undefined;
+    const clothType = (formData.get('cloth_type') as string | null) ?? undefined;
+
     // Convert to Base64
     const personBuffer = await personImageFile.arrayBuffer();
     const garmentBuffer = await garmentImageFile.arrayBuffer();
@@ -26,12 +30,16 @@ export async function POST(request: Request) {
     const humanImage = Buffer.from(personBuffer).toString('base64');
     const clothImage = Buffer.from(garmentBuffer).toString('base64');
 
-    // 1. Submit the job
+    // 1. Submit the job to IDM-VTON Modal endpoint
     const submitUrl = `${modalUrl.replace(/\/$/, '')}/Submit`;
+    const submitPayload: Record<string, unknown> = { humanImage, clothImage };
+    if (garmentDesc) submitPayload.garmentDesc = garmentDesc;
+    if (clothType) submitPayload.clothType = clothType;
+
     const submitRes = await fetch(submitUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ humanImage, clothImage }),
+      body: JSON.stringify(submitPayload),
     });
 
     if (!submitRes.ok) {
