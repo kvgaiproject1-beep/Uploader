@@ -6,9 +6,10 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
 
-    const modalUrl = process.env.MODAL_API_URL;
-    if (!modalUrl) {
-      return new NextResponse('Modal API URL is not configured', { status: 500 });
+    let modalUrl = process.env.MODAL_API_URL;
+    // Hardcode fallback because Vercel is caching or dropping the env variable
+    if (!modalUrl || modalUrl.includes('kvgaiproject1--idm-vton-virtual-try-on.modal.run')) {
+      modalUrl = 'https://kvgaiproject1--idm-vton-virtual-try-on-web-app.modal.run';
     }
 
     // Extract files from formData
