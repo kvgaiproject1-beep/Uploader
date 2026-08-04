@@ -85,6 +85,8 @@ interface PoseResult {
   status: Status
   resultUrl: string | null
   error: string | null
+  igStatus?: 'idle' | 'posting' | 'success' | 'needs_login' | 'error'
+  igLink?: string
 }
 
 export default function TryOnPage() {
@@ -270,10 +272,59 @@ export default function TryOnPage() {
     }
   };
 
-  // Instagram share: route to Instagram oauth page
-  const handleInstagramShare = (url: string) => {
-    router.push('/instagram')
-  };
+  // Instagram share: direct post
+  const handleInstagramShare = async (poseId: string, url: string) => {
+    const currentPose = poseResults[poseId]
+    if (currentPose?.igStatus === 'needs_login') {
+      router.push('/instagram')
+      return
+    }
+    if (currentPose?.igStatus === 'success' && currentPose.igLink) {
+      window.open(currentPose.igLink, '_blank')
+      return
+    }
+
+    setPoseResults(prev => ({
+      ...prev,
+      [poseId]: { ...prev[poseId], igStatus: 'posting' }
+    }))
+
+    try {
+      const res = await fetch('/api/instagram/post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_url: url, caption: 'My AI Fashion Try-On ✨ #aifashion #virtualtryon #fashionai' })
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        if (data.error === 'token_expired' || (res.status === 400 && data.error.includes('connected'))) {
+          setPoseResults(prev => ({
+            ...prev,
+            [poseId]: { ...prev[poseId], igStatus: 'needs_login' }
+          }))
+        } else {
+          setPoseResults(prev => ({
+            ...prev,
+            [poseId]: { ...prev[poseId], igStatus: 'error' }
+          }))
+          alert(data.error || 'Failed to post to Instagram')
+        }
+        return
+      }
+
+      setPoseResults(prev => ({
+        ...prev,
+        [poseId]: { ...prev[poseId], igStatus: 'success', igLink: data.post_url }
+      }))
+    } catch (err: any) {
+      setPoseResults(prev => ({
+        ...prev,
+        [poseId]: { ...prev[poseId], igStatus: 'error' }
+      }))
+      alert(err.message)
+    }
+  }
 
   // ── Generation Logic ────────────────────────────────────
   const handleGeneratePhotoshoot = async () => {
@@ -878,11 +929,15 @@ export default function TryOnPage() {
                       <div style={{ padding: '0.5rem', background: 'var(--s-card)', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                         <button
                           type="button"
-                          onClick={() => res.resultUrl && handleInstagramShare(res.resultUrl)}
-                          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #f09433 0%, #dc2743 50%, #bc1888 100%)', color: 'white', borderRadius: 'var(--r-sm)' }}
+                          disabled={res.igStatus === 'posting'}
+                          onClick={() => res.resultUrl && handleInstagramShare(pose.id, res.resultUrl)}
+                          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, border: 'none', cursor: res.igStatus === 'posting' ? 'wait' : 'pointer', background: 'linear-gradient(135deg, #f09433 0%, #dc2743 50%, #bc1888 100%)', color: 'white', borderRadius: 'var(--r-sm)', opacity: res.igStatus === 'posting' ? 0.7 : 1 }}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-                          Share to Instagram
+                          {res.igStatus === 'posting' ? 'Posting...' : 
+                           res.igStatus === 'success' ? 'View Post ↗' : 
+                           res.igStatus === 'needs_login' ? 'Log in Instagram' : 
+                           'Post to Instagram'}
                         </button>
                         <button
                           type="button"
